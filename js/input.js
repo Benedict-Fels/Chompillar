@@ -11,7 +11,7 @@ cv.addEventListener('pointerdown', e => {
   cv.setPointerCapture(e.pointerId);
   const p = toSim(e); cat.target.x = p.x; cat.target.y = p.y;
 });
-const modalOpen = () => dlg.open || $('choiceDlg').open || $('admDlg').open;
+const modalOpen = () => dlg.open || $('choiceDlg').open || $('admDlg').open || $('worldDlg').open || $('abilDlg').open;
 let typed = '';
 addEventListener('keydown', e => {
   const tag = e.target && e.target.tagName;
@@ -38,7 +38,20 @@ addEventListener('blur', () => { keys.up = keys.down = keys.left = keys.right = 
 
 $('abilBtn').onclick = e => { e.currentTarget.blur(); useActive(); };
 $('toShop').onclick = () => { run.active = false; show('shop'); };
-$('nextRun').onclick = startRun;
+$('tabRun').onclick = startRun;
+$('tabShop').onclick = () => { if (screen !== 'shop') show('shop'); };
+$('tabGut').onclick = () => { if (screen !== 'gut') openGut(); };
+$('tabGutUp').onclick = () => { if (screen !== 'gutshop') show('gutshop'); };
+$('tabBox').onclick = () => { if (screen !== 'box') show('box'); };
+$('tabWorld').onclick = () => openWorlds();
+$('worldClose').onclick = () => $('worldDlg').close();
+$('abilClose').onclick = () => $('abilDlg').close();
+// Alle Popups: Klick daneben (auf den abgedunkelten Hintergrund) schließt sie
+for (const d of document.querySelectorAll('dialog')) d.addEventListener('click', e => {
+  if (e.target !== d) return;
+  const r = d.getBoundingClientRect();
+  if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close();
+});
 let wipeArmed = 0;
 $('wipe').onclick = () => {
   const b = $('wipe');

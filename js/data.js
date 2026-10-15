@@ -362,13 +362,16 @@ const UPG = [
   { id: 'magen', w: 1, gut: true, name: 'Dehnbarer Magen', max: 3, cost: 200, grow: 2.2,
     desc: 'Der Magen fasst eine Portion mehr, du kannst also einen Run länger fressen, bevor du verdauen musst.',
     show: s => `${s.gutCap} Portionen` },
-  { id: 'gedaechtnis', w: 1, gut: true, name: 'Gedächtnis', max: 1, cost: 600, grow: 1,
-    desc: 'Der Darm merkt sich eine eigene Stellung (Pförtner und Zilien) für jede Frucht. Kommt ein Brocken einer anderen Frucht an die Reihe, gleiten Pförtner und Zilien von selbst in dessen Stellung.',
-    show: s => s.gutMem ? 'eine Stellung je Frucht' : 'eine Stellung für alles' },
-  { id: 'galle', w: 2, gut: true, name: 'Gallen-Zilie', max: 1, cost: 900, grow: 1,
-    desc: 'Eine grüne Zilie, die du wie die anderen stellst. Fett-Brocken (Walnussöl, später Kürbis), die sie berühren, werden emulgiert: Sie haften nicht mehr und springen besser ab. Echt: Gallensäuren zerteilen Fett in feine Tröpfchen.',
+  { id: 'galle', w: 2, gut: true, name: 'Gallenblase', max: 1, cost: 900, grow: 1,
+    desc: 'Eine kleine grüne Röhre, die du wie die Zilien verschiebst. Fällt ein Brocken oben hinein, läuft er hindurch und kommt unten wieder heraus. Fett-Brocken (Walnussöl, Kürbis) sind danach emulgiert: Sie haften nicht mehr und springen besser ab. Von außen prallt man an ihr ab, Punkte gibt sie keine. Echt: Die Galle zerteilt Fett in feine Tröpfchen.',
     show: s => s.gutBile ? 'eingebaut' : 'keine' },
 ];
+/* Gedächtnis: je Frucht ein Knoten, bezahlt mit deren Fruchtwährung. Ist er gekauft, merkt sich der Darm für diese
+   Frucht eine eigene Stellung (Pförtner, Zilien, Gallenblase) und gleitet beim Einwurf ihrer Brocken von selbst hinein. */
+[300, 600, 900, 1500, 2500, 5000].forEach((cost, w) => UPG.push({ id: `gmem${w}`, w, gut: true, mem: w,
+  name: `Gedächtnis: ${WORLDS[w].name}`, max: 1, cost, grow: 1,
+  desc: `Der Darm merkt sich eine eigene Stellung für Brocken aus der ${WORLDS[w].name}. Kommt einer an die Reihe, gleiten Pförtner, Zilien und Gallenblase von selbst in diese Stellung; was du für ihn umstellst, wird dort gespeichert. Ohne Gedächtnis teilt sich die ${WORLDS[w].name} die gemeinsame Stellung.`,
+  show: s => s.gutMem[w] ? 'eigene Stellung' : 'gemeinsame Stellung' }));
 // Ausbau-Knoten jeder Fähigkeit. Sie erscheinen im Ast "Fähigkeiten" im Ring der Welt nach der Wahl
 // und kosten deren Fruchtwährung plus Kernwährung der geschafften Welt.
 for (const id in ABIL){
@@ -377,3 +380,43 @@ for (const id in ABIL){
     desc: `Baut ${ABIL[id].name} aus.`, val: n.val }));
 }
 const U = Object.fromEntries(UPG.map(u => [u.id, u]));
+
+/* =====================================================================
+   Icons der Upgrade-Knoten (24er-Raster, Strich in currentColor).
+   Zuordnung: Fähigkeiten nach ihrer id, Darm nach id, sonst nach der id ohne Ziffer am Ende (kiefer3 → kiefer).
+   ===================================================================== */
+const UICON = {
+  kiefer: '<path d="M3 11C4 5.5 8 3 12 3s8 2.5 9 8M5 16c1.5 3.5 4 5.5 7 5.5s5.5-2 7-5.5"/><path fill="currentColor" stroke-width="1.2" d="M4.4 8.2 7.8 5.2 7 13.4ZM19.6 8.2l-3.4-3 .8 8.2ZM9 4.2l2.4-.8-.9 3.6ZM15 4.2l-2.4-.8.9 3.6ZM5.3 16.8l3.1 2.4-1.2-6.6ZM18.7 16.8l-3.1 2.4 1.2-6.6ZM10.4 21.2l1.6.3 1.6-.3-1.6-2.8Z"/>',   // Biss: Maul von vorn mit Reißzähnen (Auswahl Bene: B3)
+  mandibeln: '<circle cx="12" cy="17" r="4.5"/><path d="M9.5 13.3C6 11 5 7 7.5 3.5M14.5 13.3C18 11 19 7 16.5 3.5"/><path d="M7 7.5l2 .5M17 7.5l-2 .5"/>',   // Kopf mit Zangen (Auswahl Bene: M2)
+  krit: '<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4l-5.3 3 1.2-6-4.5-4.1 6-.7Z"/>',
+  kritd: '<path d="M12 2v5M12 17v5M2 12h5M17 12h5M5 5l3.5 3.5M15.5 15.5 19 19M19 5l-3.5 3.5M8.5 15.5 5 19"/>',
+  maul: '<path d="M20.5 7.5A9.5 9.5 0 1 0 20.5 16.5L12 12Z"/><circle cx="11" cy="7" r=".9"/>',   // Schnapper (Auswahl Bene: O4)
+  kaukraft: '<path d="M7 4C5 4 4 6 4 8c0 3 2 4 2 8 0 2 1 4 2 4s1.5-3 2-5c.4-1.5 3.6-1.5 4 0 .5 2 1 5 2 5s2-2 2-4c0-4 2-5 2-8 0-2-1-4-3-4-2 0-3 1-5 1S9 4 7 4Z"/>',
+  ausdauer: '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10Z"/>',
+  zaeh: '<path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6Z"/>',
+  verdauung: '<path d="M9 3v3c0 2-4 3-4 8a6 6 0 0 0 12 0c0-2-1-3-3-3s-3-1-3-3V3"/>',
+  enzyme: '<path d="M9 3h6M10 3v6L5 19a1.5 1.5 0 0 0 1.3 2h11.4a1.5 1.5 0 0 0 1.3-2L14 9V3M7.5 15h9"/>',
+  sp_faul: '<path d="M6 13c-2-4 2-9 6-8s7 3 6 8-5 7-8 6-3-3-4-6Z"/><circle cx="10" cy="11" r="1"/><circle cx="14" cy="14.5" r="1.2"/>',
+  sp_kristall: '<path d="M12 2l3.5 6L12 21 8.5 8Z"/><path d="M8.5 8h7M6.5 10 3 14l4.5 5M17.5 10l3.5 4-4.5 5"/>',
+  sp_blase: '<circle cx="11" cy="13" r="7"/><path d="M8 10a3.5 3.5 0 0 1 3-2"/><circle cx="19" cy="5" r="2"/>',
+  tempo: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M10 2h4"/>',
+  segment: '<circle cx="5.5" cy="12" r="3"/><circle cx="12" cy="12" r="3.5"/><circle cx="18.5" cy="12" r="3"/>',
+  aufladung: '<path d="M13 2 5 13h6l-1 9 8-11h-6Z"/>',
+  fressrausch: '<path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-4 2-7 2 1 3 3 3 5 1-3 1-7 1-10Z"/>',
+  schub: '<path d="M3 12h11M3 7.5h6M3 16.5h6M14 6l6 6-6 6"/>',
+  spucke: '<path d="M12 3c-3 5-5 7-5 10a5 5 0 0 0 10 0c0-3-2-5-5-10Z"/><path d="M3 20h2.5M18.5 20H21M12 22v-1"/>',
+  seidenfaden: '<path d="M3 18c4 0 4-12 9-12s5 12 9 12"/><path d="M3 12h2M19 12h2"/>',
+  brennhaare: '<circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/>',
+  saftsog: '<path d="M12 3c-3 5-5 7-5 10a5 5 0 0 0 10 0c0-3-2-5-5-10Z"/><path d="M12 17v-6M9.5 13.5 12 11l2.5 2.5"/>',
+  haeutung: '<path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 4v4h-4"/>',
+  gabeldruese: '<path d="M12 21v-9M12 12 7 3M12 12l5-9"/>',
+  zilien: '<circle cx="12" cy="15.5" r="4"/><path d="M12 11.5V4M9 12 6 5.5M15 12l3-6.5M8.2 14 3 11M15.8 14 21 11"/>',
+  darmflora: '<rect x="3.5" y="8" width="12" height="6.5" rx="3.25" transform="rotate(-20 9.5 11.25)"/><circle cx="17.5" cy="16.5" r="3"/><path d="M2.5 16.5l-1 2M15 5l1-2"/>',
+  magen: '<path d="M8 3v3c0 2-4 3-4 8a6 6 0 0 0 12 0c0-2-1-3-3-3s-3-1-3-3V3"/><path d="M19 3v5M16.5 5.5h5"/>',
+  gmem: '<path d="M7 3h10v18l-5-4-5 4Z"/>',
+  galle: '<rect x="8.5" y="3" width="7" height="14" rx="3.5"/><path d="M12 17v4M10 7h4"/>',
+};
+function nodeIcon(u){
+  const key = u.ab || (u.mem !== undefined ? 'gmem' : UICON[u.id] ? u.id : u.id.replace(/\d+$/, ''));
+  return `<svg class="ni" viewBox="0 0 24 24" aria-hidden="true">${UICON[key] || UICON.kiefer}</svg>`;
+}

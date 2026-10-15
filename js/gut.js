@@ -7,7 +7,9 @@
    - Jede Zilie gibt einem Brocken höchstens 3-mal Punkte (3, 2, 1), danach nur noch weiche Abpraller.
    - Unten die Ausgänge des Dünndarms. Jede Brockenart hat einen richtigen Ausgang (GUT.PREF), der zählt
      ×GUT.RIGHT, alle anderen ×1. Am Brett steht das nicht, man findet es heraus.
-   - Gallen-Zilie (Upgrade): emulgiert Fett-Brocken, die sie berühren (haften nicht mehr, springen besser).
+   - Gallenblase (Upgrade): eine kurze, senkrechte Röhre, die man wie die Zilien verschiebt. Fällt ein Brocken oben hinein,
+     läuft er durch und kommt unten wieder heraus; Fett-Brocken sind danach emulgiert (haften nicht mehr, springen besser).
+     Von außen prallt man an ihr ab. Punkte gibt sie keine.
    - Feste Schrittweite, kein Zufall: gleiche Frucht + gleiche Stellung = gleicher Weg.
    ===================================================================== */
 const GUT = {
@@ -70,7 +72,16 @@ GUT.FACT = {
 const gutPrefOf = T => GUT.PREF[T.id];
 const gutMult = (h, b) => gutPrefOf(b.T) === h.id ? (b.T.right || GUT.RIGHT) : 1;
 GUT.DEFAULT = [[140, 390], [320, 450], [210, 570], [370, 630], [100, 680], [300, 330], [420, 400]];   // Grundstellung der Zilien
-GUT.BILE_SPOTS = [[250, 300], [80, 520], [400, 520], [240, 700], [60, 300], [420, 300]];             // erste freie Stelle der Gallen-Zilie
+GUT.TUBE = { hw: 15, hl: 30, t: 0.4, out: 240 };                // Gallenblase: halbe Breite, halbe Länge, Laufzeit (s), Tempo beim Austritt
+GUT.BILE_SPOTS = [[130, 330], [350, 330], [80, 520], [400, 520], [240, 680], [240, 300]];         // erste freie Stelle der Gallenblase
+/* Gallenblase in die Grenzen holen: weg von der Wand und von den Zilien (Mittelpunkt-Abstand TUBE_DIST) */
+GUT.TUBE_DIST = GUT.HAIR + GUT.TUBE.hl + 12;
+function gutClampTube(x, y, cilia){
+  const G = GUT, T = G.TUBE, lo = G.EDGE, hi = G.W - G.EDGE, top = G.PF_Y + 40 + T.hl, bot = G.FLOOR - 50 - T.hl;
+  x = Math.max(lo, Math.min(hi, x)); y = Math.max(top, Math.min(bot, y));
+  for (const o of cilia){ const d = Math.hypot(x - o.x, y - o.y); if (d < G.TUBE_DIST){ x = o.x + (x - o.x) / (d || 1) * G.TUBE_DIST; y = o.y + (y - o.y) / (d || 1) * G.TUBE_DIST; } }
+  return [Math.max(lo, Math.min(hi, x)), Math.max(top, Math.min(bot, y))];
+}
 
 /* Zilien in die erlaubten Grenzen holen und auseinanderschieben */
 function gutClampCilium(x, y, others){
@@ -89,12 +100,13 @@ function gutFitLayout(L, n, bile){
   while (z.length < n) z.push([GUT.W / 2, GUT.PF_Y + 100 + z.length * 80]);
   const out = [];
   for (const p of z){ const c = gutClampCilium(p[0], p[1], out.map(q => ({ x: q[0], y: q[1] }))); out.push(c); }
-  let g = null;                                                  // Gallen-Zilie: gespeicherte Stelle oder die erste freie
+  let g = null;                                                  // Gallenblase: gespeicherte Stelle oder die erste freie
   if (bile){
     const others = out.map(q => ({ x: q[0], y: q[1] }));
     const cand = (L && L.g ? [L.g] : []).concat(GUT.BILE_SPOTS);
-    for (const c of cand){ const q = gutClampCilium(c[0], c[1], others); if (others.every(o => Math.hypot(o.x - q[0], o.y - q[1]) >= GUT.MIN_DIST - 0.5)){ g = q; break; } }
-    if (!g) g = gutClampCilium(cand[0][0], cand[0][1], others);
+    // gespeicherte Stelle hat Vorrang (gerundet gespeichert, darum etwas Spielraum); nur wenn sie wirklich kollidiert, die nächste freie
+    for (const c of cand){ const q = gutClampTube(c[0], c[1], others); if (others.every(o => Math.hypot(o.x - q[0], o.y - q[1]) >= GUT.TUBE_DIST - 3)){ g = q; break; } }
+    if (!g) g = gutClampTube(cand[0][0], cand[0][1], others);
   }
   return { pf: L && typeof L.pf === 'number' ? Math.max(GUT.WALL + 8, Math.min(GUT.W - GUT.WALL - 8, L.pf)) : GUT.W / 2, z: out, g };
 }
@@ -108,26 +120,37 @@ function gutBall(k, px){
 function gutEmulsify(b){ b.emul = true; b.T = Object.assign({}, b.T, b.T.emul); }
 /* Kürbis: platzt beim ersten Treffer in Kerne, fächerförmig nach oben (fest, kein Zufall). Jeder Kern übernimmt die
    bisherigen Punkte und einen gleichen Teil der Nährstoffe. */
+GUT.burstExtra = 0;                                               // Fundstück Kürbissuppe: zusätzliche Kerne, jeder zählt so viel wie vorher
 function gutBurst(b, z, balls, ev){
-  const n = b.T.burst, kids = [], fam = { left: n };
+  const n0 = b.T.burst, n = n0 + (GUT.burstExtra || 0), kids = [], fam = { left: n }, gap = Math.min(0.55, 2.6 / (n - 1));
   for (let i = 0; i < n; i++){
-    const a = -Math.PI / 2 + (i - (n - 1) / 2) * 0.55, sp = 330;
+    const a = -Math.PI / 2 + (i - (n - 1) / 2) * gap, sp = 330;
     const T = b.emul ? Object.assign({}, GUT.SEED, GUT.SEED.emul) : GUT.SEED;
     const c = { x: b.x + Math.cos(a) * 3, y: b.y + Math.sin(a) * 3, vx: Math.cos(a) * sp + b.vx * 0.3, vy: Math.sin(a) * sp * 0.8, T, k: b.k, r: T.r,
       got: b.got, hitsBy: new Map(b.hitsBy), touching: new Set(b.touching), chain: b.chain, done: false, trail: [], still: 0,
-      share: b.share / n, emul: b.emul, kid: true, fam };
-    if (b.v !== undefined) c.v = b.v / n;
+      share: b.share / n0, emul: b.emul, kid: true, fam };
+    if (b.v !== undefined) c.v = b.v / n0;
     kids.push(c); balls.push(c);
   }
   b.done = true; b.burst = true;
   ev.burst && ev.burst(b, kids);
 }
 
-/* Ein Physikschritt. cilia: [{x, y, fl}], ev: hit(b, z, gain, n), soft(b, vn), land(b, hole, mult, points) */
-function gutStep(balls, cilia, dt, ev){
-  const G = GUT;
+/* Ein Physikschritt. cilia: [{x, y, fl}], tube: {x, y} oder null (Gallenblase),
+   ev: hit(b, z, gain, n), soft(b, vn), land(b, hole, mult, points), tubeIn(b), emul(b) */
+function gutStep(balls, cilia, dt, ev, tube){
+  const G = GUT, TB = G.TUBE;
   for (const b of balls){
     if (b.done) continue;
+    if (b.tube){                                                  // läuft durch die Gallenblase
+      b.tube.u += dt / TB.t;
+      b.x = tube.x; b.y = tube.y - TB.hl + 2 * TB.hl * Math.min(1, b.tube.u);
+      if (b.tube.u >= 1){
+        b.tube = null; b.y = tube.y + TB.hl + TB.hw * 0.6; b.vx = 0; b.vy = TB.out; b.touching = new Set();
+        if (b.T.fat && !b.emul){ gutEmulsify(b); ev.emul && ev.emul(b); }
+      }
+      continue;
+    }
     const T = b.T, r = b.r;
     b.vy += G.G * (T.grav || 1) * dt;
     if (T.drag){ b.vx *= 1 - T.drag * dt; b.vy *= 1 - T.drag * dt * 0.6; }     // Öl ist zäh
@@ -146,7 +169,6 @@ function gutStep(balls, cilia, dt, ev){
       const vn = b.vx * nx + b.vy * ny;
       const fresh = !b.touching.has(z);                           // neuer Kontakt = ein Treffer (Rollen zählt nicht mehrfach)
       const n = b.hitsBy.get(z) || 0, gain = fresh && n < G.GAIN.length ? G.GAIN[n] : 0;
-      if (z.bile && T.fat && !b.emul){ gutEmulsify(b); ev.emul && ev.emul(b, z); }
       const jump = T.swell ? b.T.jump * Math.pow(b.T.r / b.r, 2) : b.T.jump;          // gequollen springt weniger
       if (vn < 0){
         const vtx = b.vx - vn * nx, vty = b.vy - vn * ny;
@@ -171,6 +193,7 @@ function gutStep(balls, cilia, dt, ev){
       }
     }
     b.touching = now;
+    if (tube && gutTubeHit(b, tube, ev)) continue;
     if (burstAt){ gutBurst(b, burstAt, balls, ev); continue; }
     // Trennwände zwischen den Ausgängen
     if (b.y > G.FLOOR - 24){
@@ -187,23 +210,36 @@ function gutStep(balls, cilia, dt, ev){
   }
 }
 
+/* Gallenblase: Röhre als Kapsel (senkrechte Strecke mit Radius hw). Kommt ein Brocken von oben in die Öffnung,
+   wird er eingefangen; sonst prallt er weich ab. Liefert true, wenn er jetzt in der Röhre ist. */
+function gutTubeHit(b, tube, ev){
+  const TB = GUT.TUBE, top = tube.y - TB.hl, bot = tube.y + TB.hl, r = b.r, dx = b.x - tube.x;
+  if (Math.abs(dx) < TB.hw && b.vy > 0 && b.y < top && b.y >= top - TB.hw - r - 2){          // vor dem Rand der Öffnung
+    b.tube = { u: 0 }; b.vx = 0; b.vy = 0; ev.tubeIn && ev.tubeIn(b); return true;
+  }
+  const cy = Math.max(top, Math.min(bot, b.y)), ex = b.x - tube.x, ey = b.y - cy, d = Math.hypot(ex, ey), R = TB.hw + r;
+  if (d >= R) return false;
+  const nx = ex / (d || 1), ny = ey / (d || 1);
+  b.x = tube.x + nx * R; b.y = cy + ny * R;
+  const vn = b.vx * nx + b.vy * ny;
+  if (vn < 0){ b.vx -= 1.4 * vn * nx; b.vy -= 1.4 * vn * ny; }    // weicher Abprall (0,4 der Normalen)
+  if (Math.abs(nx) < 0.2 && ny < 0 && Math.abs(b.vx) < 30) b.vx += (ex >= 0 ? 1 : -1) * 60;   // nie oben liegen bleiben
+  return false;
+}
+
 /* Einen Brocken ohne Zeichnen durchfallen lassen: Punkte (gesammelt × Ausgang) und Ausgang.
    Platzt er (Kürbis), zählen die Kerne mit ihrem Anteil; Ausgang und Faktor sind dann die des ersten Kerns. */
-function gutCilia(layoutZ, g){
-  const cil = layoutZ.map(([x, y]) => ({ x, y, fl: 0 }));
-  if (g) cil.push({ x: g[0], y: g[1], fl: 0, bile: true });
-  return cil;
-}
+const gutCilia = layoutZ => layoutZ.map(([x, y]) => ({ x, y, fl: 0 }));
 function gutSimulate(k, px, layoutZ, g){
-  const cil = gutCilia(layoutZ, g), balls = [gutBall(k, px)];
+  const cil = gutCilia(layoutZ), balls = [gutBall(k, px)], tube = g ? { x: g[0], y: g[1] } : null;
   let res = null;
   const ev = { land: (b, h, m, pts) => {
     if (!res) res = { points: 0, got: 0, mult: m, hole: h.id };
     res.points += pts * b.share; res.got += b.got * b.share;
   } };
-  for (let s = 0; s < 240 * 40 && balls.some(b => !b.done); s++) gutStep(balls, cil, GUT.STEP, ev);
+  for (let s = 0; s < 240 * 40 && balls.some(b => !b.done); s++) gutStep(balls, cil, GUT.STEP, ev, tube);
   for (const b of balls) if (!b.done){ if (!res) res = { points: 0, got: 0, mult: 1, hole: 'dick' }; res.points += b.got * b.share; res.got += b.got * b.share; }
   return res;
 }
 
-if (typeof module !== 'undefined') module.exports = { GUT, gutType, gutMult, gutPrefOf, gutBall, gutStep, gutSimulate, gutFitLayout, gutClampCilium, gutCilia };
+if (typeof module !== 'undefined') module.exports = { GUT, gutType, gutMult, gutPrefOf, gutBall, gutStep, gutSimulate, gutFitLayout, gutClampCilium, gutClampTube, gutCilia };

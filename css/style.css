@@ -25,6 +25,9 @@ body{
 .wrap{max-width:1080px;margin:0 auto}
 header{margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 h1{font-weight:800;font-size:clamp(34px,5vw,52px);line-height:.95;letter-spacing:-.02em}
+/* Logo: Raupe formt das C und beißt ins h (fertige Grafik img/logo.svg, Schrift als Pfade) */
+h1.logo{line-height:0;margin:-4px 0 2px -4px}
+h1.logo img{height:clamp(50px,7.4vw,72px);width:auto;display:block}
 header p{color:var(--mute);margin-top:6px}
 #ctrlBtn{white-space:nowrap}
 
@@ -136,8 +139,12 @@ body.full #game .hudtop{gap:12px;padding:8px 12px}
 #admDlg textarea{width:100%;min-height:70px;font:12px ui-monospace,monospace;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:6px}
 
 /* Upgrade-Baum */
-.treebox{background:var(--stage);border:1px solid var(--line);border-radius:22px;padding:12px}
-.tree{position:relative;width:100%;max-width:720px;margin:0 auto;aspect-ratio:1}
+.treebox{background:var(--stage);border:1px solid var(--line);border-radius:22px;padding:0;position:relative;overflow:hidden;aspect-ratio:1;max-height:760px;touch-action:none;cursor:grab;user-select:none}
+.treebox.panning{cursor:grabbing}
+.tree{position:absolute;left:0;top:0;width:100%;aspect-ratio:1;will-change:transform}
+.treehint{position:absolute;left:12px;bottom:10px;font-size:11px;color:var(--mute);pointer-events:none}
+.zoombtns{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px}
+.zoombtns button{width:34px;height:34px;padding:0;border-radius:10px;font-size:18px;font-weight:800;line-height:1;background:var(--panel)}
 .tree svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .tree line{stroke:var(--line);stroke-width:.6;stroke-linecap:round}
 .tree line.on{stroke:var(--mute)}
@@ -151,8 +158,11 @@ body.full #game .hudtop{gap:12px;padding:8px 12px}
   display:grid;place-items:center;font-size:clamp(8.5px,1.9vw,12px);font-weight:800;font-variant-numeric:tabular-nums;
 }
 .node.abn{border-radius:30%}
+.node .ni{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:58%;height:58%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.node .lv{position:absolute;right:-7px;bottom:-5px;font-size:clamp(7.5px,1.5vw,9.5px);line-height:1;padding:2px 3px;border-radius:7px;background:var(--panel);color:var(--ink);border:1px solid var(--line);white-space:nowrap}
+.node.max .lv{border-color:var(--accent)}
 .node .lv small{font-size:.78em;font-weight:600;opacity:.65}
-.node .lbl{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:2px;white-space:nowrap;font-size:10.5px;line-height:1.3;font-weight:600;color:var(--ink);pointer-events:none;background:color-mix(in srgb, var(--stage) 88%, transparent);padding:0 4px;border-radius:4px;z-index:1}
+.node .lbl{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:6px;white-space:nowrap;font-size:10.5px;line-height:1.3;font-weight:600;color:var(--ink);pointer-events:none;background:color-mix(in srgb, var(--stage) 88%, transparent);padding:0 4px;border-radius:4px;z-index:1}
 .node.up .lbl{top:auto;bottom:100%;margin:0 0 2px}
 .node.can{border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent)}
 .node.max{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
@@ -183,8 +193,43 @@ body.full #game .hudtop{gap:12px;padding:8px 12px}
 .admrow button{padding:4px 9px;font-size:13px;text-transform:none;letter-spacing:0}
 .lastrun{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
 
-.lower{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px}
-@media (max-width:860px){ .lower{grid-template-columns:minmax(0,1fr)} }
+/* Reiter im Menü */
+.tabs{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;margin:-6px 0 16px}
+.tab{padding:9px 16px;border-radius:12px;font-weight:700}
+.tab.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.tab .tcount{font-weight:600;opacity:.75;margin-left:4px;font-variant-numeric:tabular-nums}
+.tab.full{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent)}
+.tab.full .tcount{color:var(--accent);opacity:1}
+.tab.on.full .tcount{color:inherit}
+.tabrun{display:flex;margin-left:auto}
+.tabrun #tabRun{border-radius:12px 0 0 12px;padding:9px 18px}
+.tabrun .wsel{border-radius:0 12px 12px 0;border-left:0;display:flex;align-items:center;gap:8px;padding:9px 14px;font-weight:700}
+.tabrun .wsel .dot{width:14px;height:14px;border-radius:50%}
+.tabrun .wsel .caret{opacity:.6;font-size:.8em}
+.tabrun .wsel.new{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent)}
+#worldDlg,#abilDlg{width:min(520px,calc(100% - 32px))}
+#worldDlg .worlds,#abilDlg .abils{margin:12px 0}
+.abh{margin-top:18px}
+/* Detail des gewählten Knotens: hervorgehoben */
+.dcard{background:color-mix(in srgb, var(--accent) 7%, var(--panel));border:2px solid color-mix(in srgb, var(--accent) 55%, var(--line));border-radius:16px;padding:14px 16px;box-shadow:0 6px 18px color-mix(in srgb, var(--ink) 10%, transparent)}
+.dcard h3{font-size:22px;font-weight:800;line-height:1.1;margin-top:2px}
+.dcard .si{width:28px;height:28px}
+.dcard .si.si-c{stroke:none}
+.dcard .branch{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+.dcard p{margin-top:6px}
+.dcard .change{margin-top:10px;font-weight:600;font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px}
+.dcard .change .arrow{color:var(--mute)}
+.dcard .change .next{color:var(--accent)}
+.dcard button.wide{margin-top:12px}
+/* Darm-Upgrades als eigene Seite */
+.gtbox{aspect-ratio:auto;min-height:520px;cursor:default;padding:18px 22px;touch-action:auto}
+.gtbox .gtree{margin:0}
+.gtbox .node{width:58px;height:58px}
+.gtbox .node .lbl{font-size:12px}
+.gtbox .node.mem{width:46px;height:46px}
+.gtbox .node.mem .lbl{font-size:11px}
+.gtbox .gtl{font-size:12px}
+.panel .slots{grid-template-columns:minmax(0,1fr)}
 .worlds{display:grid;gap:8px}
 .wrow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:8px 10px}
 .wrow .dot{width:18px;height:18px;border-radius:50%;flex:none}
@@ -194,9 +239,15 @@ body.full #game .hudtop{gap:12px;padding:8px 12px}
 .wrow.future{opacity:.5}
 .wrow button{padding:6px 10px;font-size:13px}
 .slots{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.slot{border:1px dashed var(--line);border-radius:12px;padding:8px 10px;font-size:13px;color:var(--mute)}
+.slot{border:1px dashed var(--line);border-radius:12px;padding:8px 10px;font-size:13px;color:var(--mute);background:transparent;text-align:left;font-weight:500;display:flex;justify-content:space-between;align-items:center;gap:6px}
 .slot b{display:block;font-size:15px;color:var(--ink)}
 .slot.full{border-style:solid;border-color:var(--ink)}
+.slot.open{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent)}
+.slot:disabled{cursor:default;opacity:1}
+.slot .cnt{font-size:11px;color:var(--mute);white-space:nowrap}
+.sh{display:flex;align-items:center;gap:8px}
+.si{width:22px;height:22px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;color:var(--ink)}
+.acard.eq{border-color:var(--ink)}
 .abils{display:grid;gap:10px}
 .acard{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .acard h3{font-size:16px;font-weight:800;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -254,6 +305,15 @@ fieldset label.rng{align-items:center}
 .gutupg{margin-top:16px;border-top:1px solid var(--line);padding-top:12px;display:grid;gap:10px}
 .gutupg h2{margin-bottom:0}
 .gcard{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.gtree{position:relative;width:100%;margin:2px 0 4px}
+.gtree svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.gtree line{stroke:var(--line);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linecap:round}
+.gtree .node{width:40px;height:40px;font-size:11px}
+.gtree .node .lbl{font-size:10px;max-width:none}
+.gtree .node.mem{width:30px;height:30px;border-color:var(--wc)}
+.gtree .node.mem .lbl{font-size:9px}
+.gtree .gtl{position:absolute;left:0;font-size:10px;font-weight:700;color:var(--mute);text-transform:uppercase;letter-spacing:.05em}
+.node .ni.ni-c{stroke:none;width:62%;height:62%}
 .foundlist{display:grid;gap:6px}
 .found{display:grid;gap:2px;font-size:14px}
 .found .note{font-size:12px;line-height:1.35}
@@ -272,3 +332,42 @@ fieldset label.rng{align-items:center}
 .pdot.on{border:2px solid color-mix(in srgb, var(--ink) 25%, transparent)}
 .res.rausch{color:#C77A00}
 #gcv{cursor:pointer}
+
+/* Setzkasten (Fundstücke) */
+:root{ --wood:#A0703F; --wood2:#7C522B; --cell:#EBD9B8; --cellink:#3A2410; --pip:#B3122E }
+:root{ --cell0:color-mix(in srgb, var(--cell) 40%, var(--wood2)) }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --wood:#6A4626; --wood2:#4A2F17; --cell:#54412A; --cellink:#F6E8CE; --pip:#F0A43A } }
+:root[data-theme="dark"]{ --wood:#6A4626; --wood2:#4A2F17; --cell:#54412A; --cellink:#F6E8CE; --pip:#F0A43A }
+.kasten{background:linear-gradient(180deg,var(--wood),var(--wood2));border-radius:20px;padding:14px;display:grid;gap:12px;
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.2),inset 0 2px 0 rgba(255,255,255,.18),0 6px 20px rgba(0,0,0,.12)}
+.krow{display:grid;grid-template-columns:136px minmax(0,1fr);gap:10px;align-items:center}
+.klabel{color:#FFF4E2;display:flex;flex-direction:column;gap:1px;font-size:12px}
+.klabel b{display:flex;gap:6px;align-items:center;font-size:15px;font-weight:800}
+.klabel small{opacity:.8;font-variant-numeric:tabular-nums}
+.kfaecher{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.fach{aspect-ratio:1;border-radius:8px;border:none;background:var(--cell);color:var(--cellink);position:relative;
+  box-shadow:inset 0 4px 9px rgba(50,24,6,.5),inset 0 -1px 0 rgba(255,255,255,.25);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 4px;min-width:0}
+.fach:hover:not(:disabled){box-shadow:inset 0 4px 9px rgba(50,24,6,.5),0 0 0 2px #FFE3A8}
+.fach.empty{font-size:24px;font-weight:800;background:var(--cell0);color:color-mix(in srgb, var(--cellink) 60%, transparent)}
+.fach .fi{width:44%;height:44%;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.fach .fname{font-size:11px;line-height:1.1;text-align:center;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fach .pips{font-size:9px;letter-spacing:1px;color:var(--pip);line-height:1}
+.fach.sel{outline:3px solid #FFF4E2;outline-offset:2px;z-index:1}
+.fach.neu::after{content:'neu';position:absolute;top:-7px;right:-7px;background:var(--accent);color:var(--onaccent);font-size:10px;font-weight:800;padding:1px 6px;border-radius:8px}
+.krow.locked .fach{opacity:.4}
+.krow.locked .klabel{opacity:.7}
+.fpips{color:var(--accent);letter-spacing:1px}
+.fundinfo{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+@media (max-width:560px){ .krow{grid-template-columns:minmax(0,1fr);gap:6px} .klabel{flex-direction:row;gap:8px;align-items:baseline} .fach .fname{display:none} .kasten{padding:10px} .kfaecher{gap:6px} }
+.tab.new{border-color:#E2B13A;box-shadow:0 0 0 3px color-mix(in srgb, #E2B13A 30%, transparent)}
+.fundrev{margin-top:14px;border:2px solid #E2B13A;background:color-mix(in srgb, #FFE08A 16%, var(--panel));border-radius:12px;padding:10px 12px;animation:fundpop .6s ease-out}
+.fundrev .frhead{display:flex;gap:10px;align-items:center}
+.fundrev .fri{width:36px;height:36px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;color:#B8860B}
+.fundrev small{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+.fundrev b{font-size:19px;font-weight:800;line-height:1.1}
+.fundrev p{font-size:13px;margin-top:5px}
+.fundrev.miss{border-color:var(--line);background:transparent;animation:none;font-size:13px}
+.fundrev.miss b{font-size:14px}
+@keyframes fundpop{0%{transform:scale(.85);opacity:0}60%{transform:scale(1.03);opacity:1}100%{transform:scale(1)}}
+@media (prefers-reduced-motion: reduce){ .fundrev{animation:none} }

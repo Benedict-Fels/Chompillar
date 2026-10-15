@@ -8,10 +8,11 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function removePixel(i, k, vx, vy, src = 'Biss'){
   type[i] = 0; D[i*4+3] = 0; eaten[k]++;
-  const L = W.layers[k], m = meter(src);
+  const L = W.layers[k], m = meter(src), ym = pxYield(k === SPK ? SP.host : k);
   m.px++;
-  if (L.f){ const g = L.f * S.yieldW[WI]; run.f += g; run.gF += g; m.f += g; if (k === SPK && SP.kind === 'kristall') run.fx += g; }   // fx: wird zu Kristall-Brocken im Darm
-  if (L.k){ run.k += L.k; run.gK += L.k; m.k += L.k; }
+  if (L.f){ const g = L.f * S.yieldW[WI] * ym; run.f += g; run.gF += g; m.f += g; if (k === SPK && SP.kind === 'kristall') run.fx += g; }   // fx: wird zu Kristall-Brocken im Darm
+  if (L.k){ const g = L.k * ym; run.k += g; run.gK += g; m.k += g; }
+  if (k === 2 && W.id === 'walnuss' && !run.cracked && fl('kraehe')) crackShell(i);      // Fundstück Krähenwurf
   if (L.juicy && save.abil.passive === 'saftsog'){
     const cap = L.cost * (0.6 + 0.07 * abNode('saftsog', 1));
     if (run.sogCycle < cap){
@@ -72,11 +73,12 @@ function lineFree(hx, hy, tx, ty, target){
 
 function bite(){
   const h = cat.trail[0], r = headR(), reach = r * 2.35;
+  const soft = 1 + fv('mehlig'), reachMax = reach * soft;          // Fundstück Mehlig: weiches Material reicht weiter
   const cx = Math.cos(cat.dir), cy = Math.sin(cat.dir);
-  if (offsFor !== reach) buildOffsets(reach);
+  if (offsFor !== reachMax) buildOffsets(reachMax);
   const bx = Math.floor(h.x), by = Math.floor(h.y);
-  const crit = Math.random() < S.crit;
-  const power = effPower() * (crit ? S.critMult : 1);
+  const natural = Math.random() < S.crit, crit = natural || run.vitC;   // Vitamin C: Folge-Krit
+  let power = effPower() * (crit ? S.critMult : 1);
   let hit = 0, removed = 0, hardest = 0, hardestCost = -1;
   const src = run.rauschT > 0 ? 'Biss im Fressrausch' : 'Biss';
   run.sogCycle = 0;
@@ -87,20 +89,28 @@ function bite(){
   let budget = 0;
   const cand = [];
   for (const [ox, oy, od] of offs){
-    if (od > reach + 0.8) break;
+    if (od > reachMax + 0.8) break;
     const px = bx + ox, py = by + oy;
     if (px < 0 || py < 0 || px >= SIM || py >= SIM) continue;
     const dx = px + 0.5 - h.x, dy = py + 0.5 - h.y, d = Math.hypot(dx, dy);
-    if (d > reach) continue;
+    const i = py * SIM + px, k0 = type[i];
+    if (!k0 || d > (W.layers[k0].hard ? reach : reachMax)) continue;
     if (d > r * 0.6 && (dx * cx + dy * cy) / d < 0.25) continue;
-    const wgt = 1 - S.falloff * d / reach;
-    const i = py * SIM + px;
-    if (type[i]) cand.push([i, d, dx, dy, wgt]);
+    const wgt = 1 - S.falloff * Math.min(1, d / reach);
+    cand.push([i, d, dx, dy, wgt]);
   }
   // Reihenfolge: zuerst ein maulgroßer Brocken direkt vor dem Kopf, damit die Raupe durchpasst
   const fx = h.x + cx * r * 0.6, fy = h.y + cy * r * 0.6;
   for (const c of cand){ const q = c[0]; c[5] = Math.hypot(q % SIM + 0.5 - fx, (q / SIM | 0) + 0.5 - fy); }
   cand.sort((a, b) => a[5] - b[5]);
+  // Fundstück Nussknacker: der erste Biss in die Schale (Walnuss: Holzschale) jedes Runs mit mehrfacher Kraft
+  if (fl('nussknacker') && !run.knacked){
+    const sk = W.breakLayer - 1;
+    if (cand.some(c => type[c[0]] === sk && lineFree(h.x, h.y, c[0] % SIM + 0.5, (c[0] / SIM | 0) + 0.5, c[0]))){
+      run.knacked = true; power *= fv('nussknacker');
+      pop(h.x, h.y - 12, 'Knack!'); AU.sfx('knack');
+    }
+  }
   // Jedes erreichbare Pixel bringt seinen Anteil Kraft mit; ausgegeben wird sie immer zuerst am vordersten
   // noch stehenden Pixel. So wird der Brocken vor dem Maul ganz weggefressen, statt alles anzukratzen.
   // Die Kraft bleibt nach Herkunftsschicht getrennt und darf nur in gleich harte oder weichere Pixel
@@ -114,12 +124,13 @@ function bite(){
     pool[k] += power * wgt;
     budget += power * wgt;
     hit++;
-    if (W.layers[k].cost > hardestCost){ hardestCost = W.layers[k].cost; hardest = k; }
+    const pc = pxCost(i, k);                                  // Ausdauer nach dem teuersten getroffenen Pixel
+    if (pc > hardestCost){ hardestCost = pc; hardest = k; }
     open.push(c);
     for (let o = 0; o < open.length && budget > 1e-9; o++){
       const [j, dj, ex, ey] = open[o], kj = type[j];
       if (!kj){ open.splice(o--, 1); continue; }
-      const need = W.layers[kj].hp;
+      const need = softPx(j, kj) ? hpMax[j] : W.layers[kj].hp;   // Risse nehmen Kraft aus jeder Schicht an
       let want = Math.max(0, hp[j]), use = 0;
       for (const q of ord){                                   // weichste passende Kraft zuerst, harte bleibt für harte Pixel
         if (W.layers[q].hp < need || !pool[q]) continue;
@@ -142,6 +153,9 @@ function bite(){
     });
   }
   run.bites++;
+  run.biteCost = hit ? hardestCost : EMPTY_BITE;
+  run.vitC = !!(hit && natural && fl('vitaminc') && Math.random() < fv('vitaminc'));
+  if (hit && crit && !natural){ const p = cat.trail[0]; pop(p.x, p.y - 12, 'Vitamin C!'); }
   if (hit){
     snap = 1;
     meter(src).hits++;
@@ -193,10 +207,7 @@ function hairStep(dt){
 
 /* Ausdauer: Grundverbrauch pro Sekunde (W.drain, läuft auch im Stand) plus Kosten je Biss nach dem
    härtesten getroffenen Material. Ein Biss ins Leere kostet wenig. Im Fressrausch kostet nichts. */
-function spend(k){
-  const L = k ? W.layers[k] : null;
-  loseStamina(L ? L.cost * (L.hard ? S.hardMult : 1) : EMPTY_BITE);
-}
+function spend(k){ loseStamina(k ? run.biteCost : EMPTY_BITE); }      // run.biteCost: teuerstes getroffenes Pixel (pxCost)
 function drainStep(dt){ loseStamina(W.drain * dt); }
 function loseStamina(c){
   if (run.rauschT > 0 || run.over) return;
@@ -226,11 +237,11 @@ function useActive(){
   if (!id || run.charge < 1 || !run.active || run.over || paused) return;
   run.charge = cheat('noCd') ? 1 : 0;
   meter(ABIL[id].name).uses = (meter(ABIL[id].name).uses || 0) + 1;
-  const L = abL(id), h = cat.trail[0];
-  if (id === 'fressrausch'){ run.rauschT = 3 + L[0]; pop(h.x, h.y - 10, 'Fressrausch!'); }
-  if (id === 'schub'){ run.dash = (30 + 8 * L[0]) * catGrow(); pop(h.x, h.y - 10, 'Schub!'); }
-  if (id === 'spucke'){ run.proj = { x: h.x, y: h.y, dx: Math.cos(cat.dir), dy: Math.sin(cat.dir), dist: 0 }; }
-  if (id === 'seidenfaden'){ run.beamT = 2.5 + 0.5 * L[0]; run.beamTick = 0; AU.beam(run.beamT); }
+  const L = abL(id), h = cat.trail[0], gum = 1 + fv('kirschgummi');      // Fundstück Kirschgummi: wirkt länger
+  if (id === 'fressrausch'){ run.rauschT = (3 + L[0]) * gum; pop(h.x, h.y - 10, 'Fressrausch!'); }
+  if (id === 'schub'){ run.dash = (30 + 8 * L[0]) * catGrow() * gum * (1 + fv('ranke')); pop(h.x, h.y - 10, 'Schub!'); }   // Ranke: weiter
+  if (id === 'spucke'){ run.proj = { x: h.x, y: h.y, dx: Math.cos(cat.dir), dy: Math.sin(cat.dir), dist: 0, pen: 0 }; }
+  if (id === 'seidenfaden'){ run.beamT = (2.5 + 0.5 * L[0]) * gum; run.beamTick = 0; AU.beam(run.beamT); }
   AU.sfx({ fressrausch: 'rausch', schub: 'dash', spucke: 'spit' }[id]);
   hud();
 }
@@ -261,21 +272,23 @@ function dashStep(dt){
 
 function projStep(dt){
   const p = run.proj;
-  const g = catGrow();
-  let move = 150 * g * dt;
+  const g = catGrow(), ks = fv('kernspucken');                  // Fundstück Kernspucken: doppelte Weite, dringt erst ein
+  let move = 150 * g * (ks ? 1.5 : 1) * dt;
   while (move > 0){
     p.x += p.dx * 0.5; p.y += p.dy * 0.5; p.dist += 0.5; move -= 0.5;
     const px = Math.floor(p.x), py = Math.floor(p.y);
     const out = px < 0 || py < 0 || px >= SIM || py >= SIM;
-    if (p.dist > 160 * g){ run.proj = null; return; }                         // fliegt auch außerhalb des Rasters weiter
-    if (!out && type[py * SIM + px]){ explode(p.x, p.y); run.proj = null; return; }
+    if (p.dist > 160 * g * (ks ? 2 : 1)){ run.proj = null; return; }          // fliegt auch außerhalb des Rasters weiter
+    const solid = !out && type[py * SIM + px];
+    if (solid && ks && p.pen < ks * g){ p.pen += 0.5; continue; }
+    if (solid || (p.pen > 0 && !solid)){ explode(p.x, p.y); run.proj = null; return; }
   }
 }
 function spitDmg(){ return Math.max(40, S.power * admMul('pow') * 10) * (1 + 0.3 * abNode('spucke', 1)); }
 function explode(x, y){
   const L = abL('spucke'), rr = (9 + 1.5 * L[0]) * catGrow(), dmg = spitDmg();
   disc(x, y, rr, (i, dx, dy, d) => damage(i, dmg * (1 - 0.5 * d / rr), dx * 4, dy * 4, 'Säurespucke'));
-  if (L[2]) run.pool = { x, y, r: rr * 1.1, t: L[2], tick: 0 };
+  if (L[2]) run.pool = { x, y, r: rr * 1.1, t: L[2] * (1 + fv('kirschgummi')), tick: 0 };
   AU.sfx('splash'); pop(x, y - 6, 'Zisch!'); dmgPop(x, y + 4, dmg, true);
   if (!reduceMotion) shake = 3;
 }

@@ -10,7 +10,7 @@
    ===================================================================== */
 const gcv = $('gcv'), gctx = gcv.getContext('2d');
 gcv.width = GUT.W * 2; gcv.height = GUT.H * 2;
-const gut = { queue: [], transit: [], balls: [], cilia: [], pops: [], pfX: GUT.W / 2, drag: null, glide: null, pending: false, chosen: null,
+const gut = { queue: [], transit: [], balls: [], cilia: [], tube: null, pops: [], pfX: GUT.W / 2, drag: null, glide: null, pending: false, chosen: null,
   t: 0, acc: 0, auto: false, autoT: 0, active: false, finished: true, n0: 0, done: 0, got: {}, best: 0, holes: {}, hits: 0, saveT: 0, panelT: 0,
   flash: GUT.HOLES.map(() => 0) };                               // Aufleuchten der Ausgänge (richtiger Ausgang)
 
@@ -29,31 +29,34 @@ const payout = (v, points) => v * points / GUT.full * S.gutConv;
 /* ---------- Stellung (Pförtner + Zilien) ---------- */
 function layoutFor(w){
   const L = save.gutLay || {};
-  return gutFitLayout(S.gutMem && L.per && L.per[w] ? L.per[w] : L, S.gutCilia, S.gutBile);
+  return gutFitLayout(S.gutMem[w] && L.per && L.per[w] ? L.per[w] : L, S.gutCilia, S.gutBile);
 }
 function snapshot(){
-  const g = gut.cilia.find(z => z.bile);
-  return { pf: Math.round(gut.pfX), z: gut.cilia.filter(z => !z.bile).map(z => [Math.round(z.x), Math.round(z.y)]), g: g ? [Math.round(g.x), Math.round(g.y)] : null };
+  const g = gut.tube;
+  return { pf: Math.round(gut.pfX), z: gut.cilia.map(z => [Math.round(z.x), Math.round(z.y)]), g: g ? [Math.round(g.x), Math.round(g.y)] : null };
 }
-function storeLayout(w){                                        // aktuelle Stellung merken (für alle und, mit Gedächtnis, für diese Frucht)
+// Aktuelle Stellung merken: mit Gedächtnis für diese Frucht nur in ihrer eigenen Stellung, sonst in der gemeinsamen
+function storeLayout(w){
   const L = save.gutLay = save.gutLay || {}, s = snapshot();
-  L.pf = s.pf; L.z = s.z; L.g = s.g;
-  if (S.gutMem && w !== undefined){ L.per = L.per || {}; L.per[w] = s; }
+  if (w !== undefined && S.gutMem[w]){ L.per = L.per || {}; L.per[w] = s; }
+  else { L.pf = s.pf; L.z = s.z; L.g = s.g; }
 }
 const newCilium = (x, y) => ({ x, y, fl: 0, hairs: Array.from({ length: 16 }, (_, i) => ({ a: -Math.PI / 2 + (i - 7.5) * 0.39, ph: i * 1.7 })) });
-// Zilien in der Reihenfolge der Stellung, die Gallen-Zilie (falls eingebaut) als letzte
+// Bewegliche Teile in fester Reihenfolge: die Zilien, dann die Gallenblase (falls eingebaut)
+const movers = () => gut.tube ? gut.cilia.concat([gut.tube]) : gut.cilia;
 const layoutPts = L => L.g ? L.z.concat([L.g]) : L.z;
-function applyLayout(L, animate){
+function applyLayout(L, animate, w = gut.layW){
   const pts = layoutPts(L);
-  gut.cilia = gut.cilia.filter(z => !z.bile);
+  gut.layW = w;                                                    // Frucht, deren Stellung gerade steht (für das Speichern)
   while (gut.cilia.length < L.z.length) gut.cilia.push(newCilium(L.z[gut.cilia.length][0], L.z[gut.cilia.length][1]));
   gut.cilia.length = L.z.length;
-  if (L.g){ const b = newCilium(L.g[0], L.g[1]); b.bile = true; gut.cilia.push(b); }
-  if (!animate){ gut.pfX = L.pf; gut.cilia.forEach((z, i) => { z.x = pts[i][0]; z.y = pts[i][1]; }); return; }
-  gut.glide = { t: 0, dur: 0.35, from: { pf: gut.pfX, z: gut.cilia.map(z => [z.x, z.y]) }, to: { pf: L.pf, z: pts } };
+  if (L.g && !gut.tube) gut.tube = { x: L.g[0], y: L.g[1], fl: 0 };
+  if (!L.g) gut.tube = null;
+  if (!animate){ gut.pfX = L.pf; movers().forEach((z, i) => { z.x = pts[i][0]; z.y = pts[i][1]; }); return; }
+  gut.glide = { t: 0, dur: 0.35, from: { pf: gut.pfX, z: movers().map(z => [z.x, z.y]) }, to: { pf: L.pf, z: pts } };
 }
-const sameLayout = L => Math.abs(L.pf - gut.pfX) < 0.5 && layoutPts(L).length === gut.cilia.length
-  && layoutPts(L).every((p, i) => Math.hypot(p[0] - gut.cilia[i].x, p[1] - gut.cilia[i].y) < 0.5);
+const sameLayout = L => Math.abs(L.pf - gut.pfX) < 0.5 && layoutPts(L).length === movers().length
+  && layoutPts(L).every((p, i) => Math.hypot(p[0] - movers()[i].x, p[1] - movers()[i].y) < 0.5);
 
 /* ---------- Magensack: Brocken liegen als Haufen, nur zur Anzeige ---------- */
 const SX = 168, SY = 86, RX = 112, RY = 72, OUT_A = 0.75;
@@ -100,7 +103,7 @@ function nextIdx(){                                             // der nächste 
 
 /* ---------- Runde öffnen und verlassen ---------- */
 function openGut(){
-  S = stats();
+  S = stats(); GUT.burstExtra = fl('suppe') ? fv('suppe') - 5 : 0;
   const items = save.gut.p.flatMap(portionBalls);
   for (let i = items.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [items[i], items[j]] = [items[j], items[i]]; }
   save.gut.p = [];
@@ -108,7 +111,8 @@ function openGut(){
   gut.transit = []; gut.balls = []; gut.pops = []; gut.got = {}; gut.best = 0; gut.holes = {}; gut.hits = 0;
   gut.n0 = items.length; gut.done = 0; gut.auto = false; gut.pending = false; gut.chosen = null; gut.glide = null;
   gut.active = items.length > 0; gut.finished = !gut.active;
-  applyLayout(layoutFor(items.length ? items[0].k : save.world), false);
+  const k0 = items.length ? items[0].k : save.world;
+  applyLayout(layoutFor(k0), false, k0);
   persist();
   show('gut');
 }
@@ -129,7 +133,7 @@ function gutFinish(){ gut.active = false; gut.finished = true; AU.sfx('verdaut')
 
 /* Für Tests und die Bot-Simulation: den ganzen Magen ohne Zeichnen verdauen, mit der gespeicherten Stellung */
 function digestAll(pickPf){
-  S = stats();
+  S = stats(); GUT.burstExtra = fl('suppe') ? fv('suppe') - 5 : 0;
   const items = save.gut.p.flatMap(portionBalls), got = {};
   save.gut.p = [];
   for (const it of items){
@@ -147,9 +151,10 @@ function gutDrop(){
   if (!gut.active || gut.pending || gut.drag) return false;
   const ni = nextIdx(); if (ni < 0) return false;
   const q = gut.queue[ni]; gut.chosen = q;
-  if (S.gutMem){                                                // mit Gedächtnis: erst die Stellung dieser Frucht einnehmen
+  if (S.gutMem.some(Boolean)){                                  // mit Gedächtnis: erst die Stellung dieser Frucht (oder die gemeinsame) einnehmen
     const L = layoutFor(q.k);
-    if (!sameLayout(L)){ applyLayout(L, true); gut.pending = true; return true; }
+    if (!sameLayout(L)){ applyLayout(L, true, q.k); gut.pending = true; return true; }
+    gut.layW = q.k;
   }
   gutRelease(); return true;
 }
@@ -171,6 +176,12 @@ const GUT_EV = {
     AU.sfx('zotte', Math.min(12, b.chain * 2));
   },
   land(b, h, m, points){
+    if (sorbitAgain(b)){                                      // Fundstück Sorbit: der Pflaumen-Brocken läuft noch einmal durch
+      const nb = gutBall(b.k, gut.pfX); nb.v = b.v; nb.got = b.got; nb.again = true; gut.balls.push(nb);
+      gut.pops.push({ x: (h.x1 + h.x2) / 2, y: GUT.FLOOR - 16, txt: 'Sorbit: nochmal!', col: '#E3D2F5', life: 1.4, big: true });
+      AU.sfx('plopp');
+      return;
+    }
     const cash = payout(b.v, points);
     addCur(b.k, 'f', cash);
     gut.got[b.k] = (gut.got[b.k] || 0) + cash;
@@ -193,25 +204,60 @@ const GUT_EV = {
     gut.pops.push({ x: b.x, y: b.y - 16, txt: 'Knack!', col: '#FFE9C2', life: 0.8 });
     AU.sfx('knack'); AU.sfx('plopp');
   },
-  emul(b, z){
-    gut.pops.push({ x: z.x, y: z.y - GUT.CIL_R - 14, txt: 'emulgiert', col: '#CDEB9A', life: 1 });
+  tubeIn(b){ if (gut.tube) gut.tube.fl = 1; AU.sfx('plopp'); },
+  emul(b){
+    gut.pops.push({ x: b.x, y: b.y + 16, txt: 'emulgiert', col: '#CDEB9A', life: 1 });
     AU.sfx('drop');
   },
 };
+/* Sorbit: jeder 2. Pflaumen-Brocken (Stufe 2: zwei von drei, Stufe 3: jeder) läuft ein zweites Mal durch, fest gezählt */
+function sorbitAgain(b){
+  const l = fl('sorbit');
+  if (!l || b.again || b.T.id !== 'pflaume') return false;
+  const c = save.sorbitN = (save.sorbitN || 0) + 1;
+  return l >= 3 || (l === 2 ? c % 3 !== 0 : c % 2 === 0);
+}
+/* Nusstinte: Fallbahn des nächsten Brockens vorausrechnen (dieselbe Physik, ohne Zufall), bis zur 1. / 2. Zilie oder ganz.
+   Zwischengespeichert, solange Pförtner, Zilien und Gallenblase gleich stehen. */
+function inkPath(){
+  const l = fl('nusstinte');
+  if (!l || gut.glide || gut.pending) return null;
+  const ni = nextIdx(); if (ni < 0) return null;
+  const k = gut.queue[ni].k, stop = fv('nusstinte');
+  const key = [k, stop, Math.round(gut.pfX), ...movers().map(z => Math.round(z.x) + ',' + Math.round(z.y))].join('|');
+  if (gut.ink && gut.ink.key === key) return gut.ink.pts;
+  const cil = gut.cilia.map(z => ({ x: z.x, y: z.y, fl: 0 })), tube = gut.tube ? { x: gut.tube.x, y: gut.tube.y } : null;
+  const b = gutBall(k, gut.pfX), balls = [b], pts = [[b.x, b.y]];
+  let hits = 0;
+  const ev = { hit(){ hits++; } };
+  for (let s = 0; s < 240 * 15 && !b.done; s++){
+    gutStep(balls, cil, GUT.STEP, ev, tube);
+    if (s % 4 === 0 || b.done) pts.push([b.x, b.y]);
+    if (hits >= stop){ pts.push([b.x, b.y]); break; }
+  }
+  gut.ink = { key, pts };
+  return pts;
+}
 function gutUpdate(dt){
   gut.t += dt;
   if (gut.glide){
     const gl = gut.glide; gl.t += dt; const u = Math.min(1, gl.t / gl.dur), e = u * u * (3 - 2 * u);
     gut.pfX = gl.from.pf + (gl.to.pf - gl.from.pf) * e;
-    gut.cilia.forEach((z, i) => { z.x = gl.from.z[i][0] + (gl.to.z[i][0] - gl.from.z[i][0]) * e; z.y = gl.from.z[i][1] + (gl.to.z[i][1] - gl.from.z[i][1]) * e; });
+    movers().forEach((z, i) => { z.x = gl.from.z[i][0] + (gl.to.z[i][0] - gl.from.z[i][0]) * e; z.y = gl.from.z[i][1] + (gl.to.z[i][1] - gl.from.z[i][1]) * e; });
     if (u >= 1){ gut.glide = null; if (gut.pending){ gut.pending = false; gutRelease(); } }
   }
   sackStep(dt);
+  // Mit Gedächtnis zeigt der Darm immer die Stellung des markierten (nächsten) Brockens: Was man verschiebt, gilt für ihn
+  if (S.gutMem.some(Boolean) && !gut.drag && !gut.glide && !gut.pending){
+    const ni = nextIdx();
+    if (ni >= 0 && gut.queue[ni].k !== gut.layW){ const k = gut.queue[ni].k, L = layoutFor(k); if (sameLayout(L)) gut.layW = k; else applyLayout(L, true, k); }
+  }
   for (let i = gut.transit.length - 1; i >= 0; i--){
     const q = gut.transit[i]; q.u += dt / 0.55;
     if (q.u >= 1){ gut.transit.splice(i, 1); const b = gutBall(q.k, q.px); b.v = q.v; gut.balls.push(b); }
   }
-  gutStep(gut.balls, gut.cilia, dt, GUT_EV);
+  gutStep(gut.balls, gut.cilia, dt, GUT_EV, gut.tube);
+  if (gut.tube) gut.tube.fl = Math.max(0, gut.tube.fl - dt * 2);
   for (const b of gut.balls){ b.trail.push([b.x, b.y]); if (b.trail.length > 12) b.trail.shift(); }
   gut.balls = gut.balls.filter(b => !b.done);
   for (const z of gut.cilia) z.fl = Math.max(0, z.fl - dt * 2.5);
@@ -256,15 +302,27 @@ function drawCilium(c, z, t){
     const bx = z.x + Math.cos(a) * (R * 0.55), by = z.y + Math.sin(a) * (R * 0.55);
     const tx = z.x + Math.cos(a) * len, ty = z.y + Math.sin(a) * len;
     const mx = z.x + Math.cos(a + sway * 2) * len * 0.7, my = z.y + Math.sin(a + sway * 2) * len * 0.7;
-    c.strokeStyle = z.fl > 0.2 ? '#F2B64A' : z.bile ? '#6F9A3A' : '#C8665A'; c.lineWidth = 3.4;
+    c.strokeStyle = z.fl > 0.2 ? '#F2B64A' : '#C8665A'; c.lineWidth = 3.4;
     c.beginPath(); c.moveTo(bx, by); c.quadraticCurveTo(mx, my, tx, ty); c.stroke();
-    c.fillStyle = z.fl > 0.2 ? '#FFE08A' : z.bile ? '#D9EFA8' : '#FBE3D8'; c.beginPath(); c.arc(tx, ty, 2.8, 0, 6.283); c.fill();
+    c.fillStyle = z.fl > 0.2 ? '#FFE08A' : '#FBE3D8'; c.beginPath(); c.arc(tx, ty, 2.8, 0, 6.283); c.fill();
   }
   const grd = c.createRadialGradient(z.x - 5, z.y - 6, 2, z.x, z.y, R);
-  if (z.bile && z.fl <= 0.2){ grd.addColorStop(0, '#CFE7A0'); grd.addColorStop(1, '#5E8A34'); }      // Gallen-Zilie: grün
-  else { grd.addColorStop(0, z.fl > 0.2 ? '#FFE9B0' : '#F6C1B2'); grd.addColorStop(1, z.fl > 0.2 ? '#E8A45A' : '#C9685C'); }
+  grd.addColorStop(0, z.fl > 0.2 ? '#FFE9B0' : '#F6C1B2'); grd.addColorStop(1, z.fl > 0.2 ? '#E8A45A' : '#C9685C');
   c.fillStyle = grd; c.beginPath(); c.arc(z.x, z.y, R, 0, 6.283); c.fill();
   c.strokeStyle = hl ? '#FFFFFF' : 'rgba(90,30,24,0.6)'; c.lineWidth = hl ? 2.5 : 1.5; c.stroke();
+}
+/* Gallenblase: kleine grüne Röhre mit Öffnung oben, Galle schwappt darin */
+function drawTube(c, tb, t){
+  const { hw, hl } = GUT.TUBE, x = tb.x, y = tb.y, hl2 = gut.drag === 'tube';
+  c.fillStyle = `rgba(160,210,90,${0.25 + 0.35 * tb.fl})`; c.beginPath(); c.roundRect(x - hw - 4, y - hl - 6, 2 * hw + 8, 2 * hl + 12, hw + 4); c.fill();
+  const g = c.createLinearGradient(x - hw, 0, x + hw, 0); g.addColorStop(0, '#5E8A34'); g.addColorStop(0.45, '#A9CF6A'); g.addColorStop(1, '#4E7A2A');
+  c.fillStyle = g; c.beginPath(); c.roundRect(x - hw, y - hl, 2 * hw, 2 * hl, [hw * 0.5, hw * 0.5, hw, hw]); c.fill();
+  c.fillStyle = 'rgba(214,236,150,0.55)';                                   // Galle schwappt
+  for (let i = 0; i < 3; i++){ const yy = y - hl + 10 + ((t * 26 + i * 17) % (2 * hl - 14)); c.beginPath(); c.ellipse(x + Math.sin(t * 2 + i) * 4, yy, 3, 2, 0, 0, 6.283); c.fill(); }
+  c.fillStyle = '#2F4A1A'; c.beginPath(); c.ellipse(x, y - hl, hw - 2, 4.5, 0, 0, 6.283); c.fill();   // Öffnung
+  c.strokeStyle = hl2 ? '#FFFFFF' : 'rgba(40,70,20,0.7)'; c.lineWidth = hl2 ? 2.5 : 1.5;
+  c.beginPath(); c.roundRect(x - hw, y - hl, 2 * hw, 2 * hl, [hw * 0.5, hw * 0.5, hw, hw]); c.stroke();
+  c.fillStyle = '#3E6420'; c.beginPath(); c.roundRect(x - 5, y + hl - 2, 10, 8, 3); c.fill();       // Ausgang
 }
 function drawWallHairs(c, t){                                   // Flimmerhärchen an den Wänden: Welle, die nach unten schlägt
   const { W, WALL, PF_Y, FLOOR } = GUT;
@@ -364,9 +422,17 @@ function drawGut(){
   c.fillStyle = '#5A2620'; c.beginPath(); c.ellipse(px, PF_Y, 8, 3.8, 0, 0, 6.283); c.fill();
   c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = 1.5;
   for (const sd of [-1, 1]){ c.beginPath(); c.moveTo(px + sd * 27, PF_Y - 3); c.lineTo(px + sd * 31, PF_Y); c.lineTo(px + sd * 27, PF_Y + 3); c.stroke(); }
-  if (gut.queue.length || gut.transit.length){ c.setLineDash([3, 6]); c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(px, PF_Y + 12); c.lineTo(px, FLOOR); c.stroke(); c.setLineDash([]); }
+  const ink = gut.queue.length ? inkPath() : null;
+  if (ink){                                                       // Nusstinte: vorausgesagte Fallbahn
+    c.setLineDash([5, 5]); c.strokeStyle = 'rgba(74,46,22,0.85)'; c.lineWidth = 2.4; c.lineCap = 'round';
+    c.beginPath(); ink.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke(); c.setLineDash([]);
+    const [ex, ey] = ink[ink.length - 1]; c.fillStyle = 'rgba(74,46,22,0.85)'; c.beginPath(); c.arc(ex, ey, 3.5, 0, 6.283); c.fill();
+  }
+  else if (gut.queue.length || gut.transit.length){ c.setLineDash([3, 6]); c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(px, PF_Y + 12); c.lineTo(px, FLOOR); c.stroke(); c.setLineDash([]); }
   for (const z of gut.cilia) drawCilium(c, z, t);
+  if (gut.tube) drawTube(c, gut.tube, t);
   for (const b of gut.balls){
+    if (b.tube){ c.globalAlpha = 0.55; drawBrocken(c, b.k, b.x, b.y, 0.8, b); c.globalAlpha = 1; continue; }   // in der Röhre
     c.strokeStyle = b.T.col; c.globalAlpha = 0.25; c.lineWidth = b.r * 0.8; c.lineCap = 'round'; c.beginPath(); b.trail.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke(); c.globalAlpha = 1;
     drawBrocken(c, b.k, b.x, b.y, 1, b);
     c.font = '800 12px "Bricolage Grotesque", system-ui, sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(70,20,16,0.8)';
@@ -381,6 +447,7 @@ function drawGut(){
 
 /* ---------- Seitenleiste ---------- */
 function renderGutLive(){
+  renderTabs();
   let top = '';
   for (let w = 0; w < WORLDS.length; w++) if (gut.got[w]) top += `<div class="res">${icon(w, 'f')}+${fmtInt(gut.got[w])}</div>`;
   if (!top) top = `<div class="note">${gut.active ? 'Stell Pförtner und Zilien hin, dann klick auf den Magen.' : 'Der Magen ist leer. Jeder Run füllt eine Portion.'}</div>`;
@@ -400,7 +467,6 @@ function renderGutLive(){
   $('gutHint').textContent = gut.finished && gut.n0
     ? 'Fertig verdaut. Deine Stellung bleibt gespeichert.'
     : 'Zilien und Pförtner anfassen und ziehen. Klick auf den Magen (oder Leertaste) wirft den markierten Brocken ein. Jede Zilie gibt einem Brocken höchstens 3, 2, 1 Punkte. Jede Frucht wird an einem anderen Ausgang am besten aufgenommen: Finde ihn heraus. Gleiche Frucht und gleiche Stellung ergeben immer denselben Weg.';
-  for (const b of document.querySelectorAll('#gutUpg [data-gbuy]')) b.disabled = !canBuy(U[b.dataset.gbuy]);
 }
 /* Entdeckte Ausgänge: je Frucht, die schon frei ist, der richtige Ausgang oder "?" */
 function foundHtml(){
@@ -412,22 +478,81 @@ function foundHtml(){
   }).join('');
   return `<h2>Ausgänge</h2><div class="foundlist">${rows}</div>`;
 }
-function renderGutPanel(){
+/* Darm-Upgrades: eigene Seite mit Baum. Oben der Darm, darunter Zilien, Darmflora, Magen, Gallenblase,
+   unten je Frucht ein Gedächtnis-Knoten. Beschreibung und Kaufen nach dem Anklicken (zweiter Klick kauft). */
+const GUT_TREE = { zilien: [14, 0.42], darmflora: [38, 0.42], magen: [62, 0.42], galle: [86, 0.42] };
+const GUT_SHORT = { zilien: 'Mehr Zilien', darmflora: 'Darmflora', magen: 'Magen', galle: 'Gallenblase' };
+const FRUIT_SHORT = ['Beere', 'Kirsche', 'Walnuss', 'Pflaume', 'Apfel', 'Kürbis'];
+let gutSel = null;
+function gutNodePos(u, H){ return u.mem !== undefined ? [10 + 16 * u.mem, H * 0.82] : [(GUT_TREE[u.id] || [50])[0], H * 0.42]; }
+function gutNodeHtml(u){
+  const l = lv(u.id), mem = u.mem !== undefined;
+  const ic = mem ? `<svg class="ni ni-c" viewBox="0 0 24 24" aria-hidden="true">${ICON[u.mem].f}</svg>` : nodeIcon(u);
+  return `${ic}<span class="lv">${l}<small>/${u.max}</small></span><span class="lbl">${mem ? FRUIT_SHORT[u.mem] || WORLDS[u.mem].name : GUT_SHORT[u.id] || u.name}</span>`;
+}
+function renderGutTree(H){
   const list = UPG.filter(u => u.gut && visible(u));
-  $('gutUpg').innerHTML = foundHtml() + '<h2>Darm-Upgrades</h2>' + list.map(u => {
-    const l = lv(u.id), maxed = l >= u.max, c = costOf(u);
-    return `<div class="gcard"><div class="ghead"><b>${u.name}</b><span class="note">${l}/${u.max}</span></div>
-      <p class="note">${u.desc}</p>
-      <p class="change"><span class="now">${nodeVal(u, l)}</span>${maxed ? ' <span class="note">(voll)</span>' : `<span class="arrow">→</span><span class="next">${nodeVal(u, l + 1)}</span>`}</p>
-      ${maxed ? '' : `<button class="wide" data-gbuy="${u.id}" ${canBuy(u) ? '' : 'disabled'}>Kaufen: ${costHtml(c)}</button>`}</div>`;
-  }).join('');
-  for (const b of document.querySelectorAll('#gutUpg [data-gbuy]')) b.onclick = () => {
-    const u = U[b.dataset.gbuy];
-    if (!canBuy(u)){ AU.sfx('nope'); return; }
-    buy(u);
-    if (gut.cilia.length !== S.gutCilia + (S.gutBile ? 1 : 0)) applyLayout(gutFitLayout(snapshot(), S.gutCilia, S.gutBile), false);   // neue Zilie erscheint an freier Stelle
-    storeLayout(); renderGutPanel();
+  if (!list.some(u => u.id === gutSel)) gutSel = (list.find(u => lv(u.id) < u.max) || list[0] || {}).id || null;
+  const mems = list.filter(u => u.mem !== undefined), top = H * 0.13, bar = H * 0.66;
+  let lines = '';
+  for (const u of list){ const [x, y] = gutNodePos(u, H); if (u.mem === undefined) lines += `<line x1="50" y1="${top}" x2="${x}" y2="${y}"/>`; }
+  if (mems.length){                                           // Gedächtnis: Leiste vom Darm nach unten, dann zu jeder Frucht
+    const xs = mems.map(u => gutNodePos(u, H)[0]), y = gutNodePos(mems[0], H)[1];
+    lines += `<line x1="50" y1="${top}" x2="50" y2="${bar}"/><line x1="${Math.min(50, ...xs)}" y1="${bar}" x2="${Math.max(50, ...xs)}" y2="${bar}"/>`
+      + xs.map(x => `<line x1="${x}" y1="${bar}" x2="${x}" y2="${y}"/>`).join('');
+  }
+  let h = `<div class="gtree" style="height:${H}px"><svg viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true">${lines}</svg>
+    <div class="node root" style="left:50%;top:${top}px" title="Darm"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true">${UICON.verdauung}</svg></div>`
+    + (mems.length ? `<span class="gtl" style="top:${bar - 26}px">Gedächtnis je Frucht</span>` : '');
+  for (const u of list){
+    const [x, y] = gutNodePos(u, H);
+    h += `<button class="node${u.mem !== undefined ? ' mem' : ''}" data-gnode="${u.id}" title="${u.name}" style="left:${x}%;top:${y}px${u.mem !== undefined ? `;--wc:${WORLDS[u.mem].color}` : ''}">${gutNodeHtml(u)}</button>`;
+  }
+  return h + '</div>';
+}
+function renderGutDetail(){
+  const el = $('gutDetail'); if (!el) return;
+  const u = U[gutSel];
+  if (!u){ el.innerHTML = ''; return; }
+  const l = lv(u.id), maxed = l >= u.max, c = costOf(u);
+  const ic = u.mem !== undefined ? `<svg class="si si-c" viewBox="0 0 24 24" aria-hidden="true">${ICON[u.mem].f}</svg>` : nodeIcon(u).replace('class="ni"', 'class="si"');
+  el.innerHTML = `<div class="dcard"><div class="branch">Darm · ${WORLDS[c.w].name}</div><h3 class="sh">${ic}${u.name}</h3>
+    <p>${u.desc}</p><p class="note">Stufe ${l} von ${u.max}</p>
+    <p class="change"><span class="now">${nodeVal(u, l)}</span>${maxed ? ' <span class="note">(voll ausgebaut)</span>' : `<span class="arrow">→</span><span class="next">${nodeVal(u, l + 1)}</span>`}</p>
+    ${maxed ? '' : `<button class="wide primary" data-gbuy="${u.id}" ${canBuy(u) ? '' : 'disabled'}>Kaufen: ${costHtml(c)}</button>`}
+    ${!maxed && !afford(c) ? `<p class="note">(fehlt: ${missing(c)})</p>` : ''}</div>`;
+  const b = el.querySelector('[data-gbuy]');
+  if (b) b.onclick = () => gutBuy(u);
+}
+/* Nach einem Kauf (mehr Zilien, Gallenblase): alle gespeicherten Stellungen anpassen, Neues erscheint an freier Stelle */
+function refitLayouts(){
+  const L = save.gutLay = save.gutLay || {}, f = x => gutFitLayout(x && x.z ? x : null, S.gutCilia, S.gutBile);
+  const sh = f(L); L.pf = sh.pf; L.z = sh.z; L.g = sh.g;
+  for (const w in (L.per || {})) L.per[w] = f(L.per[w]);
+}
+function gutBuy(u){
+  if (!canBuy(u)){ AU.sfx('nope'); return; }
+  buy(u); refitLayouts(); persist(); renderGutShop();
+}
+function syncGutTree(){                                        // Zustand der Knoten (kaufbar, voll, gewählt), ohne neu zu bauen
+  for (const b of document.querySelectorAll('#gutTreeBox [data-gnode]')){
+    const u = U[b.dataset.gnode];
+    b.classList.toggle('can', canBuy(u)); b.classList.toggle('max', lv(u.id) >= u.max); b.classList.toggle('sel', gutSel === u.id);
+  }
+}
+function renderGutShop(){
+  const box = $('gutTreeBox').parentElement, H = Math.max(360, Math.min(620, box.clientHeight || 520));
+  $('bank2').innerHTML = bankHtml();
+  $('gutTreeBox').innerHTML = renderGutTree(H);
+  for (const b of document.querySelectorAll('#gutTreeBox [data-gnode]')) b.onclick = () => {
+    const u = U[b.dataset.gnode];
+    if (gutSel === u.id){ if (lv(u.id) < u.max) gutBuy(u); else AU.sfx('nope'); return; }
+    gutSel = u.id; AU.sfx('tick'); syncGutTree(); renderGutDetail();
   };
+  renderGutDetail(); syncGutTree(); renderTabs();
+}
+function renderGutPanel(){                                     // Seitenleiste im Darm: nur noch die entdeckten Ausgänge
+  $('gutUpg').innerHTML = foundHtml();
   renderGutLive();
 }
 
@@ -437,26 +562,28 @@ function gutXY(e){
   return { x: (e.clientX - r.left - (r.width - GUT.W * sc) / 2) / sc, y: (e.clientY - r.top - (r.height - GUT.H * sc) / 2) / sc };
 }
 const ciliumAt = p => gut.cilia.find(z => Math.hypot(z.x - p.x, z.y - p.y) < GUT.CIL_R + 12);
+const overTube = p => gut.tube && Math.abs(p.x - gut.tube.x) < GUT.TUBE.hw + 8 && Math.abs(p.y - gut.tube.y) < GUT.TUBE.hl + 10;
 const overPf = p => Math.abs(p.x - gut.pfX) < 28 && Math.abs(p.y - GUT.PF_Y) < 14;
 const overStomach = p => Math.hypot((p.x - SX) / RX, (p.y - SY) / RY) < 1;
 gcv.addEventListener('pointerdown', e => {
   e.preventDefault(); const p = gutXY(e);
   const z = ciliumAt(p);
-  if (z || overPf(p)){ gut.drag = z || 'pf'; gut.glide = null; gut.pending = false; gcv.setPointerCapture(e.pointerId); return; }
+  if (z || overPf(p) || overTube(p)){ gut.drag = z || (overTube(p) ? 'tube' : 'pf'); gut.glide = null; gut.pending = false; gcv.setPointerCapture(e.pointerId); return; }
   if (overStomach(p)) gutDrop();
 });
 gcv.addEventListener('pointermove', e => {
   const p = gutXY(e);
-  gcv.style.cursor = gut.drag ? 'grabbing' : ciliumAt(p) || overPf(p) ? 'grab' : overStomach(p) ? 'pointer' : 'default';
+  gcv.style.cursor = gut.drag ? 'grabbing' : ciliumAt(p) || overPf(p) || overTube(p) ? 'grab' : overStomach(p) ? 'pointer' : 'default';
   if (!gut.drag) return;
   if (gut.drag === 'pf'){ gut.pfX = Math.max(GUT.WALL + 8, Math.min(GUT.W - GUT.WALL - 8, p.x)); return; }
-  const [x, y] = gutClampCilium(p.x, p.y, gut.cilia.filter(o => o !== gut.drag));
+  if (gut.drag === 'tube'){ const [x, y] = gutClampTube(p.x, p.y, gut.cilia); gut.tube.x = x; gut.tube.y = y; return; }
+  const [x, y] = gutClampCilium(p.x, p.y, movers().filter(o => o !== gut.drag));
   gut.drag.x = x; gut.drag.y = y;
 });
 addEventListener('pointerup', () => {
   if (!gut.drag) return;
   gut.drag = null;
-  const ni = nextIdx(); storeLayout(ni >= 0 ? gut.queue[ni].k : undefined); persist();
+  storeLayout(gut.layW); persist();
 });
 addEventListener('keydown', e => {
   if (screen !== 'gut' || modalOpen()) return;
@@ -466,7 +593,5 @@ addEventListener('keydown', e => {
 });
 
 $('gutSkip').onclick = e => { gut.auto = true; gut.autoT = 0; e.currentTarget.blur(); renderGutLive(); };
-$('gutShop').onclick = () => show('shop');
-$('gutRun').onclick = () => startRun();
 $('toGut').onclick = () => { run.active = false; openGut(); };
 $('endNext').onclick = () => startRun();

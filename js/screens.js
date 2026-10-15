@@ -9,10 +9,17 @@ function show(which){
   $('game').hidden = which !== 'game';
   $('shop').hidden = which !== 'shop';
   $('gut').hidden = which !== 'gut';
+  $('gutshop').hidden = which !== 'gutshop';
+  $('box').hidden = which !== 'box';
   document.body.classList.toggle('ingame', which === 'game');
+  $('tabs').hidden = which === 'game';
+  $('tabShop').classList.toggle('on', which === 'shop'); $('tabGut').classList.toggle('on', which === 'gut'); $('tabGutUp').classList.toggle('on', which === 'gutshop'); $('tabBox').classList.toggle('on', which === 'box');
+  renderTabs();
   AU.song(which === 'game' ? W.id : 'shop');
   if (which === 'shop'){ paused = false; $('pauseBox').hidden = true; renderShop(); if (save.choice) openChoice(); }
+  if (which === 'gutshop'){ paused = false; $('pauseBox').hidden = true; $('sub').textContent = 'Darm-Upgrades'; renderGutShop(); }
   if (which === 'gut'){ paused = false; $('pauseBox').hidden = true; $('sub').textContent = 'Verdauen'; renderGutPanel(); }
+  if (which === 'box'){ paused = false; $('pauseBox').hidden = true; $('sub').textContent = 'Setzkasten'; renderBox(); }
 }
 
 /* ---------- Pause ---------- */

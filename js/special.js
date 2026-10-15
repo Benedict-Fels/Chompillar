@@ -27,6 +27,7 @@ function genSpecial(){
   SP.items = []; drops.length = 0;
   const kinds = W.spKinds || Object.keys(SPECIAL);
   let pick = adm.on && adm.sp ? adm.sp : 'none';
+  if (run.mods && run.mods.dry){ SP.kind = null; SP.def = null; return; }   // Dörrpflaume statt Sonderstelle
   if (!(adm.on && adm.sp)){                                    // nach freigeschalteten Upgrades gewichtet
     const P = spChances();
     let x = Math.random();
@@ -38,12 +39,15 @@ function genSpecial(){
   const def = Object.assign({}, SPECIAL[pick], over);             // z. B. Walnuss: Öltropfen statt Saftblase
   SP.kind = pick; SP.def = def; SP.host = hk;
   W.layers[SPK] = Object.assign(def.layer(W.layers[hk], W), { name: def.name }, over.L || {});
+  if (pick === 'faul' && fl('gaerung')) W.layers[SPK].f *= fv('gaerung');          // Fundstück Gärung
   const count = def.n[0] + Math.floor(Math.random() * (def.n[1] - def.n[0] + 1));
+  // Größe: Gallmilbe (alle), Glasigkeit (Zuckerkristalle im Apfel), Kirschessigfliege (Faulstellen)
+  SP.grow = 1 + fv('gallmilbe') + (pick === 'kristall' && W.id === 'apfel' ? fv('glasig') : 0) + (pick === 'faul' && fl('essigfliege') ? 0.25 : 0);
   if (pick === 'faul') return genRot(count, def);
 
   // Blasen und Kristalle liegen ganz in der Wirtsschicht
   for (let tries = 0; SP.items.length < count && tries < 500; tries++){
-    const r = R * def.r * (tries > 250 ? 0.7 : 1);
+    const r = R * def.r * SP.grow * (tries > 250 ? 0.7 : 1);
     const a = Math.random() * Math.PI * 2, d = R * (0.1 + Math.random() * 0.85);
     const x = CX + Math.cos(a) * d, y = CY + Math.sin(a) * d;
     let all = 0, ok = 0;
@@ -124,7 +128,7 @@ function genRot(count, def){
   for (let s = 0; s < count; s++){
     const a = Math.random() * Math.PI * 2 + s * 2.4;
     const x = CX + Math.cos(a) * R * W.spRot, y = CY + Math.sin(a) * R * W.spRot;
-    const r = R * def.r * (0.85 + Math.random() * 0.3), seed = Math.random() * 50;
+    const r = R * def.r * SP.grow * (0.85 + Math.random() * 0.3), seed = Math.random() * 50;
     const w1 = Math.random() * 6.3, w2 = Math.random() * 6.3;
     const item = { x, y, r, left: 0 };
     disc(x, y, r * 1.3, (i, dx, dy, dd) => {
@@ -166,7 +170,12 @@ function popBubble(b){
   });
   meter(SP.def.name).px += n - 1;
   const hL = W.layers[SP.host], cur = hL.f ? 'f' : 'k';          // Öltropfen im Nusskern bringen Kernwährung
-  const v = n * (cur === 'f' ? hL.f * S.yieldW[WI] : hL.k) * SP.def.mult;
+  const v = n * (cur === 'f' ? hL.f * S.yieldW[WI] : hL.k) * SP.def.mult * pxYield(SP.host);
+  if (fl('honigtau') && !run.over){                                // Fundstück Honigtau: Ausdauer zurück
+    const g = run.max * fv('honigtau');
+    run.stamina = Math.min(run.max, run.stamina + g); run.sogGain += g;
+    pop(b.x, b.y + b.r + 10, '+' + fmtInt(g) + ' Ausdauer', 'gain');
+  }
   const k = Math.min(26, 8 + Math.round(n / 10));
   for (let q = 0; q < k; q++){
     const a = Math.random() * 6.283, r = Math.random() * b.r;
@@ -225,17 +234,19 @@ function drawSpecial(){
       }
     }
   }
-  if (run.spT > 0 && SP.def){
+  if (run.spT > 0 && run.banner && run.banner.length){         // Einblendung beim Start: Sonderstellen, Fruchtzustand, Johannistag
     ctx.save();
-    const k = Math.min(1, run.spT, (2.6 - run.spT) * 4);
+    const k = Math.min(1, run.spT, (run.spT0 - run.spT) * 4);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = Math.max(0, k);
     ctx.textAlign = 'center';
     ctx.font = `800 26px 'Bricolage Grotesque', system-ui, sans-serif`;
     ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-    const txt = `Diese ${W.name} hat ${SP.def.plural}`;
-    ctx.strokeText(txt, cv.width / 2, cv.height - 34);
-    ctx.fillStyle = accent; ctx.fillText(txt, cv.width / 2, cv.height - 34);
+    run.banner.forEach((txt, j) => {
+      const y = cv.height - 34 - (run.banner.length - 1 - j) * 34;
+      ctx.strokeText(txt, cv.width / 2, y);
+      ctx.fillStyle = accent; ctx.fillText(txt, cv.width / 2, y);
+    });
     ctx.restore();
   }
 }

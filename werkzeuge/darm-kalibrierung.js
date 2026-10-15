@@ -7,7 +7,7 @@
 const G = require('../js/gut.js');
 const n = +process.argv[2] || G.GUT.cilia0, bile = process.argv[3] === 'galle';
 const L = G.gutFitLayout(null, n, bile);
-console.log(`${n} Zilien in Grundstellung${bile ? ' + Gallen-Zilie' : ''}, ganz verdaut ab ${G.GUT.full} Punkten, richtiger Ausgang ×${G.GUT.RIGHT}`);
+console.log(`${n} Zilien in Grundstellung${bile ? ' + Gallenblase' : ''}, ganz verdaut ab ${G.GUT.full} Punkten, richtiger Ausgang ×${G.GUT.RIGHT}`);
 G.GUT.TYPES.forEach((T, k) => {
   const rs = []; for (let x = 24; x <= 456; x += 4) rs.push(G.gutSimulate(k, x, L.z, L.g));
   const pts = rs.map(r => r.points), avg = pts.reduce((a, b) => a + b, 0) / pts.length;

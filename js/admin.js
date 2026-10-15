@@ -13,7 +13,7 @@ $('admClose').onclick = () => $('admDlg').close();
 $('admDlg').addEventListener('close', () => { S = stats(); persist(); if (screen === 'shop') renderShop(); else { buildRunPanel(); hud(); } });
 function openAdmin(){ renderAdmin(); if (!$('admDlg').open) $('admDlg').showModal(); }
 
-function admChanged(){ S = stats(); persist(); renderAdmin(); if (screen === 'shop') renderShop(); }
+function admChanged(){ S = stats(); persist(); renderAdmin(); if (screen === 'shop') renderShop(); else if (screen === 'box') renderBox(); }
 function freeAbilSlot(){                                     // Ring im Baum, in dem noch keine Fähigkeit liegt
   for (let f = 0; f < WORLDS.length - 1; f++) if (!Object.keys(save.abil.own).some(id => save.abil.from[id] === f)) return f;
   return 9;                                                  // sonst ohne Baum-Knoten (Stufen hier im Admin einstellen)
@@ -42,6 +42,7 @@ function unlockAll(){
   for (const id in ABIL) grantAbil(id);
   for (const u of UPG) save.lv[u.id] = u.max;
   for (const id in ABIL) for (let i = 0; i < 3; i++) save.lv[`ab_${id}_${i}`] = 5;
+  save.fund = Object.fromEntries(FUND.map(f => [f.id, 3]));
   WORLDS.forEach((w, i) => { addCur(i, 'f', 1e6); addCur(i, 'k', 1e6); });
 }
 const upgradesOf = w => UPG.filter(u => !u.ab && u.w === w);
@@ -53,7 +54,7 @@ function renderAdmin(){
     <button data-a="all" class="go">Alles freischalten</button>
     <button data-a="fresh">${Date.now() - admWipeArmed < 3000 ? 'Wirklich? Nochmal klicken' : 'Alles auf Anfang'}</button>
     ${save.choice ? '<button data-a="nochoice">Offene Fähigkeiten-Wahl verwerfen</button>' : ''}</div>
-    <p class="note">Alles freischalten: alle Welten, alle Fähigkeiten, alle Upgrades und Fähigkeiten-Stufen auf Maximum, je 1 Mio. von jeder Währung. Alles auf Anfang setzt den Spielstand zurück (Admin, Steuerung und Ton bleiben).</p></div>`;
+    <p class="note">Alles freischalten: alle Welten, alle Fähigkeiten, alle Upgrades, Fähigkeiten-Stufen und Fundstücke auf Maximum, je 1 Mio. von jeder Währung. Alles auf Anfang setzt den Spielstand zurück (Admin, Steuerung und Ton bleiben).</p></div>`;
 
   h += `<div class="asec"><h3>Währungen</h3>`;
   WORLDS.forEach((w, i) => {
@@ -102,6 +103,15 @@ function renderAdmin(){
   }
   h += `</div><div class="arow"><button data-a="aball">Alle besitzen</button><button data-a="abmax">Alle Stufen Max</button><button data-a="abnone">Alle entfernen</button></div></div>`;
 
+  const fsel = (key, opts) => `<select data-fsel="${key}">${opts.map(([k, n]) => `<option value="${k}" ${(adm[key] || '') === k ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
+  h += `<div class="asec"><h3>Fundstücke</h3><p class="note">Stufe 0 = nicht gefunden, 1–3 = gefunden und veredelt.</p>`;
+  WORLDS.forEach((w, wi) => {
+    h += `<div class="arow"><span class="nm">${w.name}</span>${fundsOf(wi).map(f => `<label class="stk"><small>${f.name}</small><input class="xs" type="number" min="0" max="3" data-fund="${f.id}" value="${fl(f.id)}"></label>`).join('')}</div>`;
+  });
+  h += `<div class="arow"><button data-a="fund1">Alle Stufe 1</button><button data-a="fund3">Alle Stufe 3</button><button data-a="fund0">Alle weg</button></div>
+    <div class="arow"><label>Fundstelle ${fsel('fund', [['', 'normal (10 %)'], ['always', 'in jeder Frucht'], ['none', 'nie']])}</label>
+      <label>Frucht ${fsel('fruit', [['', 'normal'], ['ripe', 'überreif'], ['dry', 'Dörrpflaume (nur Pflaume)'], ['face', 'Halloween (nur Kürbis)']])}</label><span class="note">gilt ab dem nächsten Run</span></div></div>`;
+
   h += `<div class="asec"><h3>Testen</h3>
     <div class="arow"><label><input type="checkbox" data-flag="infStam" ${adm.infStam ? 'checked' : ''}> Unendliche Ausdauer</label>
       <label><input type="checkbox" data-flag="noCd" ${adm.noCd ? 'checked' : ''}> Keine Abklingzeit</label></div>
@@ -144,6 +154,8 @@ function renderAdmin(){
   on('[data-abl]', 'onchange', (i, d) => { save.lv['ab_' + d.abl] = Math.max(0, Math.min(5, Math.round(+i.value || 0))); admChanged(); });
   on('[data-abset]', 'onclick', (b, d) => { for (let i = 0; i < 3; i++) save.lv[`ab_${d.abset}_${i}`] = +d.v; admChanged(); });
   on('[data-sp]', 'onchange', (s) => { adm.sp = s.value; saveAdm(); });
+  on('[data-fsel]', 'onchange', (s, d) => { adm[d.fsel] = s.value; saveAdm(); });
+  on('[data-fund]', 'onchange', (i, d) => { save.fund = save.fund || {}; const v = Math.max(0, Math.min(3, Math.round(+i.value || 0))); if (v) save.fund[d.fund] = v; else delete save.fund[d.fund]; admChanged(); });
   on('[data-flag]', 'onchange', (i, d) => { adm[d.flag] = i.checked; saveAdm(); });
   on('[data-num]', 'onchange', (i, d) => { adm[d.num] = Math.max(0.1, Math.min(d.num === 'speed' ? 8 : 1000, +i.value || 1)); saveAdm(); S = stats(); });
   on('[data-a]', 'onclick', async (b, d) => {
@@ -154,6 +166,8 @@ function renderAdmin(){
       admWipeArmed = 0; save = freshSave(); selected = 'kiefer';
     }
     if (a === 'nochoice') save.choice = null;
+    if (a === 'fund1' || a === 'fund3') save.fund = Object.fromEntries(FUND.map(f => [f.id, a === 'fund1' ? 1 : 3]));
+    if (a === 'fund0'){ save.fund = {}; save.fundKeep = {}; }
     if (a === 'add1' || a === 'add2') WORLDS.forEach((w, i) => { addCur(i, 'f', a === 'add1' ? 1e4 : 1e6); addCur(i, 'k', a === 'add1' ? 1e4 : 1e6); });
     if (a === 'zero') save.cur = {};
     if (a === 'gut1') for (let i = 0; save.gut.p.length < S.gutCap; i++) save.gut.p.push({ w: i % save.unlocked, n: 100, x: 0 });

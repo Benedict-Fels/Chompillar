@@ -8,7 +8,9 @@ const freshSave = () => ({ v: 3, cur: {}, lv: {}, runs: [0, 0, 0, 0, 0, 0], unlo
   abil: { own: {}, from: {}, active: null, passive: null }, choice: null, best: {}, last: null, spOff: {},
   gut: { p: [] },                           // Magen: Portionen { w, n, x } (Nährstoffe normal und aus Zuckerkristallen)
   gutLay: null,                             // Darm-Stellung { pf, z: [[x, y]], g: [x, y] (Gallen-Zilie), per: { Welt: { pf, z, g } } }
-  gutFound: {} });                          // entdeckte richtige Ausgänge je Brockenart { oel: 'lymph' }
+  gutFound: {},                             // entdeckte richtige Ausgänge je Brockenart { oel: 'lymph' }
+  fund: {}, fundNew: [], fundKeep: {},      // Fundstücke { id: Stufe 1–3 }, noch nicht angesehene, gemerkte Fundstellen je Welt (Lagerkürbis)
+  sorbitN: 0 });                            // Zähler der Pflaumen-Brocken für Sorbit
 let save = freshSave();
 const cur = (w, t) => save.cur[w + t] || 0;
 const addCur = (w, t, x) => { save.cur[w + t] = cur(w, t) + x; };
@@ -61,6 +63,8 @@ function migrateGut(){
   // Stufe 16 → 17: Falten-Darm durch Zilien-Plinko ersetzt; Längere Zotten und Darmschlinge gibt es nicht mehr
   if (save.lv.zottenlaenge){ refund('zottenlaenge', 0, 150, 1.9); delete save.lv.zottenlaenge; }
   if (save.lv.darmschlinge){ refund('darmschlinge', 1, 400, 2.5); delete save.lv.darmschlinge; }
+  // Stufe 19: Gedächtnis gibt es je Frucht; das alte (für alle Früchte) wird zu Gedächtnis-Knoten für Johannisbeere, Kirsche, Walnuss
+  if (save.lv.gedaechtnis){ for (let w = 0; w < 3; w++) save.lv['gmem' + w] = 1; delete save.lv.gedaechtnis; }
 }
 function persist(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
 
@@ -70,7 +74,7 @@ const isMobile = matchMedia('(pointer: coarse)').matches && Math.min(screen.widt
 const ui = { full: isMobile, nums: true, shake: 1 };                // shake: 0 aus, 1 leicht, 2 stark
 try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || '{}')); } catch (e) {}
 const saveUi = () => { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} };
-const adm = { on: false, known: false, infStam: false, noCd: false, noSave: false, meter: true, pow: 1, rate: 1, speed: 1 };
+const adm = { on: false, known: false, infStam: false, noCd: false, noSave: false, meter: true, pow: 1, rate: 1, speed: 1, fund: '', fruit: '' };
 try { Object.assign(adm, JSON.parse(localStorage.getItem(ADM_KEY) || '{}')); } catch (e) {}
 if (/[?&#]admin\b/.test(location.search + location.hash)){ adm.on = true; adm.known = true; }
 const saveAdm = () => { try { localStorage.setItem(ADM_KEY, JSON.stringify(adm)); } catch (e) {} };

@@ -13,7 +13,7 @@
 <div class="wrap">
   <header>
     <div>
-      <h1>Chompillar</h1>
+      <h1 class="logo"><img src="img/logo.svg" alt="Chompillar" width="856" height="224"></h1>
       <p id="sub"></p>
     </div>
     <div class="hbtns">
@@ -23,6 +23,30 @@
       <button id="ctrlBtn" class="small">Einstellungen</button>
     </div>
   </header>
+
+  <!-- Reiter im Menü (Upgrades und Darm): Upgrades, Verdauen, Neuer Run mit Welt-Auswahl -->
+  <nav class="tabs" id="tabs" hidden>
+    <button class="tab" id="tabShop">Upgrades</button>
+    <button class="tab" id="tabGutUp">Darm-Upgrades</button>
+    <button class="tab" id="tabBox">Setzkasten <span class="tcount" id="tabBoxN"></span></button>
+    <button class="tab" id="tabGut">Verdauen <span class="tcount" id="tabGutN"></span></button>
+    <div class="tabrun">
+      <button class="go" id="tabRun">Neuer Run</button>
+      <button class="wsel" id="tabWorld" aria-haspopup="dialog"></button>
+    </div>
+  </nav>
+
+  <dialog id="worldDlg" aria-labelledby="worldTitle">
+    <h2 id="worldTitle">Welt wählen</h2>
+    <div class="worlds" id="worlds"></div>
+    <button class="wide" id="worldClose">Schließen</button>
+  </dialog>
+
+  <dialog id="abilDlg" aria-labelledby="abilTitle">
+    <h2 id="abilTitle">Fähigkeit</h2>
+    <div class="abils" id="abils"></div>
+    <button class="wide" id="abilClose">Schließen</button>
+  </dialog>
 
   <dialog id="ctrlDlg" aria-labelledby="ctrlTitle">
     <form method="dialog">
@@ -108,6 +132,7 @@
             <p class="note" id="endNote"></p>
             <div class="gain" id="endGain"></div>
             <div class="stats" id="endStats"></div>
+            <div id="endFund" hidden></div>
             <div class="meter" id="endMeter" hidden></div>
             <button class="wide primary" id="toGut">Verdauen</button>
             <div class="endrow"><button id="endNext">Noch ein Run</button><button id="toShop">Upgrades</button></div>
@@ -147,9 +172,30 @@
       <div class="stats" id="gutStats"></div>
       <button class="wide" id="gutSkip">Rest sofort verdauen</button>
       <div class="gutupg" id="gutUpg"></div>
-      <button class="wide primary" id="gutShop">Zu den Upgrades</button>
-      <button class="wide go" id="gutRun">Nächster Run</button>
     </aside>
+  </section>
+
+  <!-- ===== Darm-Upgrades (eigene Seite) ===== -->
+  <section id="gutshop" hidden>
+    <div class="cols">
+      <div class="treebox gtbox"><div id="gutTreeBox"></div></div>
+      <aside class="panel">
+        <div class="bank" id="bank2"></div>
+        <div id="gutDetail"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ===== Setzkasten (Fundstücke) ===== -->
+  <section id="box" hidden>
+    <div class="cols">
+      <div class="kasten" id="kasten"></div>
+      <aside class="panel">
+        <div class="bank" id="bank3"></div>
+        <div id="fundDetail"></div>
+        <p class="note fundinfo" id="fundInfo"></p>
+      </aside>
+    </div>
   </section>
 
   <!-- ===== Upgrades ===== -->
@@ -160,22 +206,11 @@
       </div>
       <aside class="panel">
         <div class="bank" id="bank"></div>
-        <div class="stomach" id="stomach"></div>
-        <div id="detail"></div>
-        <button class="wide go" id="nextRun">Nächster Run</button>
+        <div id="detail" class="dcard"></div>
+        <h2 class="abh">Fähigkeiten</h2>
+        <div class="slots" id="slots"></div>
         <div class="lastrun note" id="lastRun"></div>
       </aside>
-    </div>
-    <div class="lower">
-      <div class="panel">
-        <h2>Welten</h2>
-        <div class="worlds" id="worlds"></div>
-      </div>
-      <div class="panel">
-        <h2>Fähigkeiten</h2>
-        <div class="slots" id="slots"></div>
-        <div class="abils" id="abils"></div>
-      </div>
     </div>
     <button class="small" id="wipe" style="margin-top:18px">Spielstand löschen</button>
   </section>
@@ -185,6 +220,7 @@
 <script src="js/gut.js"></script>
 <script src="js/data.js"></script>
 <script src="js/save.js"></script>
+<script src="js/fund.js"></script>
 <script src="js/songs.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/stats.js"></script>
@@ -195,6 +231,7 @@
 <script src="js/run.js"></script>
 <script src="js/draw.js"></script>
 <script src="js/shop.js"></script>
+<script src="js/setzkasten.js"></script>
 <script src="js/screens.js"></script>
 <script src="js/darm.js"></script>
 <script src="js/admin.js"></script>

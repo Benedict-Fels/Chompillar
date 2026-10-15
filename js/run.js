@@ -5,15 +5,24 @@
 function startRun(){
   S = stats();
   WI = save.world; W = WORLDS[WI];
-  setupGrid(W);
+  wallLayer();                                              // Walnuss: Trennwand-Schicht, wenn die Scheidewand gefunden ist
+  run.mods = fruitMods();                                   // Dörrpflaume, überreif, Halloween-Kürbis, Johannistag
+  setupGrid(W, run.mods.dry ? 0.8 : 1);
   clearFruit();
   GEN[W.id]();
+  if (run.mods.dry) dryFruit();
+  if (W.id === 'apfel' && fl('apfelwickler')) wormTunnels();
+  if (run.mods.face) carveFace();
   genSpecial();
+  if (run.mods.ripe) ripeFruit();
+  run.fund = fundPlace(fundPlan());
   finishFruit();
+  const banner = startBanner();
   Object.assign(run, { active: true, over: false, endT: 0, shown: false, stamina: S.stamina, max: S.stamina,
+    banner, spT0: banner.length ? 2.6 + 0.5 * (banner.length - 1) : 0, cracked: false, knacked: false, vitC: false, biteCost: 0, waxT: 0,
     f: 0, fx: 0, k: 0, bites: 0, crits: 0, broke: false, hardStreak: 0, touched: {}, moving: false,
     charge: 1, rauschT: 0, dash: 0, proj: null, pool: null, beamT: 0, beamTick: 0, beamEnd: null, beamAcc: 0,
-    molted: false, moltT: 0, sog: 0, sogCycle: 0, hairT: 0, hairFx: 0, clean: false, left: [...layerKeys(W), SPK].reduce((a, k) => a + (totals[k] || 0), 0), spDone: 0, spT: SP.def ? 2.6 : 0, dropSnd: 0,
+    molted: false, moltT: 0, sog: 0, sogCycle: 0, hairT: 0, hairFx: 0, clean: false, left: [...layerKeys(W), SPK].reduce((a, k) => a + (totals[k] || 0), 0), spDone: 0, spT: banner.length ? 2.6 + 0.5 * (banner.length - 1) : 0, dropSnd: 0,
     time: 0, spent: 0, warn: 0, sogGain: 0, m: {}, gF: 0, gK: 0, gT: 0 });
   paused = false; $('pauseBox').hidden = true;
   resetCat();
@@ -34,6 +43,7 @@ function endRun(quick = false){                            // quick: aus dem Pau
   paused = false; $('pauseBox').hidden = true;
   const test = cheat('noSave');                             // Admin: Testlauf ohne Gutschrift
   const p = Object.fromEntries(layerKeys(W).map(k => [k, pctOf(k)])), sp = spSummary();
+  const fund = test ? null : fundEnd();                     // Fundstück gutschreiben oder (Lagerkürbis) merken
   if (!test){
     addCur(WI, 'f', run.f);
     addCur(WI, 'k', run.k);
@@ -42,7 +52,7 @@ function endRun(quick = false){                            // quick: aus dem Pau
     const b = save.best[WI] || (save.best[WI] = {});
     for (const k in p) b[k] = Math.max(b[k] || 0, p[k]);
   }
-  save.last = { w: WI, f: run.f, fx: run.fx, portion: !!run.portion, k: run.k, bites: run.bites, crits: run.crits, broke: run.broke, clean: run.clean, p, sp, test };
+  save.last = { w: WI, f: run.f, fx: run.fx, portion: !!run.portion, k: run.k, bites: run.bites, crits: run.crits, broke: run.broke, clean: run.clean, p, sp, test, fund };
   persist();
 }
 
@@ -50,7 +60,7 @@ function showEnd(){
   run.shown = true;
   const L = save.last, w = WORLDS[L.w];
   $('endTitle').textContent = L.clean ? 'Ratzeputz!' : L.broke ? 'Satt und müde' : 'Erschöpft';
-  $('endNote').textContent = L.clean ? `Die ganze ${w.name} ist weg.` : L.broke ? 'Gut gefressen. Die Ausdauer ist trotzdem alle.' : 'Die Ausdauer ist aufgebraucht, bevor es richtig losging.';
+  $('endNote').textContent = L.clean ? `${MASC(w.name) ? 'Der ganze' : 'Die ganze'} ${w.name} ist weg.` : L.broke ? 'Gut gefressen. Die Ausdauer ist trotzdem alle.' : 'Die Ausdauer ist aufgebraucht, bevor es richtig losging.';
   let g = `<div>${icon(L.w, 'f')}+${fmtInt(L.f)} <small>${w.fruitCur}</small></div>`;
   if (L.k >= 1) g += `<div>${icon(L.w, 'k')}+${fmtInt(L.k)} <small>${w.coreCur}</small></div>`;
   $('endGain').innerHTML = g;
@@ -61,6 +71,8 @@ function showEnd(){
   if (L.test) rows.push(['Testlauf', 'nicht gutgeschrieben']);
   else rows.push(['Magen', (L.portion ? '+1 Portion' : stomachFull() ? 'voll' : 'nichts dazu') + ` (${save.gut.p.length}/${S.gutCap})`]);
   $('endStats').innerHTML = rows.map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join('');
+  $('endFund').innerHTML = fundRevealHtml(L); $('endFund').hidden = !L.fund;
+  if (L.fund && L.fund.got) setTimeout(() => AU.sfx('reveal'), 350);
   $('endMeter').hidden = !(adm.on && adm.meter);
   if (!$('endMeter').hidden) $('endMeter').innerHTML = meterHtml();
   $('endBox').hidden = false;
@@ -113,6 +125,8 @@ function update(dt){
     if (run.pool) poolStep(dt);
     if (run.beamT > 0) beamStep(dt);
     if (far && save.abil.passive === 'brennhaare') hairStep(dt);
+    if (far && fl('wachsreif')) waxStep(dt);
+    fundStep();
     // Abklingzeit in Sekunden; läuft erst, wenn die Wirkung vorbei ist
     if (run.charge < 1 && !effectOn()){
       run.charge = cheat('noCd') ? 1 : Math.min(1, run.charge + dt / S.cd);

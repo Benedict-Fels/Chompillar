@@ -12,8 +12,8 @@ const layerKeys = w => Object.keys(w.layers).map(Number).filter(k => k !== SPK).
 const fruitCv = document.createElement('canvas');
 const fctx = fruitCv.getContext('2d');
 
-function setupGrid(world){
-  R = world.R;
+function setupGrid(world, scale = 1){                     // scale: Dörrpflaume ist kleiner
+  R = world.R * scale;
   SIM = Math.ceil(2 * R * 1.06 + 76);
   N = SIM * SIM;
   SC = 720 / SIM;
@@ -36,7 +36,7 @@ function put(i, k, c, n){
   col[i*3] = c[0]; col[i*3+1] = c[1]; col[i*3+2] = c[2];
   totals[k]++;
 }
-function clearFruit(){ for (const k of [1, 2, 3, 4, SPK]){ totals[k] = 0; eaten[k] = 0; } }
+function clearFruit(){ for (const k of [1, 2, 3, 4, 5, SPK]){ totals[k] = 0; eaten[k] = 0; } }   // 5: Trennwand der Walnuss (Scheidewand)
 function finishFruit(){
   for (let i = 0; i < N; i++){
     const o = i * 4;
@@ -133,6 +133,7 @@ function genWalnut(){
     }
     const ux = dx * cr + dy * sr, uy = -dx * sr + dy * cr;
     if (Math.abs(uy) < 2.4 / q || (Math.abs(ux) < 1.8 / q && t < inner * 0.72)){
+      if (W.layers[5]) return put(i, 5, [176 - 20 * n, 140 - 16 * n, 88 - 12 * n], n);   // Scheidewand: weiche Trennwand, heller
       return put(i, 2, [124 - 20 * n, 88 - 16 * n, 50 - 12 * n], n);
     }
     const w = Math.pow(Math.abs(Math.sin(ux * q * 0.45 + Math.sin(uy * q * 0.28 + s) * 2.4)), 5);

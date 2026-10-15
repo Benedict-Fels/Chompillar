@@ -32,11 +32,12 @@ const unlocked = u => visible(u) && (!u.parent || lv(u.parent) >= u.need);
 const afford = c => cur(c.w, 'f') >= c.f && (!c.k || cur(c.kw, 'k') >= c.k);
 const canBuy = u => unlocked(u) && lv(u.id) < u.max && afford(costOf(u));
 
-/* Wahrscheinlichkeit je Sonderstelle: fest 5 % je Stufe (ausgeschaltet = 0), der Rest hat keine */
+/* Wahrscheinlichkeit je Sonderstelle: fest 5 % je Stufe (ausgeschaltet = 0), der Rest hat keine.
+   Fundstück Kirschessigfliege: Faulstellen zusätzlich, auch ohne Upgrade. */
 function spChances(){
   const off = save.spOff || {}, p = {};
   let sum = 0;
-  for (const k of ['faul', 'kristall', 'blase']){ p[k] = off[k] ? 0 : SP_STEP * lv('sp_' + k); sum += p[k]; }
+  for (const k of ['faul', 'kristall', 'blase']){ p[k] = off[k] ? 0 : SP_STEP * lv('sp_' + k) + (k === 'faul' ? fv('essigfliege') : 0); sum += p[k]; }
   p.none = Math.max(0, 1 - sum);
   return p;
 }
@@ -54,20 +55,20 @@ function stats(){
     stamina: Math.round((30 + 5 * lv('ausdauer') + 10 * lv('ausdauer2') + 10 * lv('ausdauer3') + 15 * lv('ausdauer4') + 20 * lv('ausdauer5') + 30 * lv('ausdauer6')) * durst),
     hardMult: 1 - 0.08 * lv('zaeh') - 0.04 * lv('zaeh2') - 0.03 * lv('zaeh3'),
     cd: 30 - 3 * lv('aufladung'),                          // Abklingzeit der aktiven Fähigkeit in Sekunden
-    yieldW: [
+    yieldW: [                                              // dazu je Welt das Ertrags-Fundstück (Blütenrest, Herzkirsche …)
       1 + 0.15 * lv('verdauung') + 0.3 * lv('enzyme'),
       1 + 0.15 * lv('verdauung2'),
       1 + 0.15 * lv('verdauung3'),
       1 + 0.15 * lv('verdauung4'),
       1 + 0.15 * lv('verdauung5'),
       1 + 0.15 * lv('verdauung6'),
-    ],
+    ].map((y, w) => y * fundYield(w)),
     rate: 1 + 0.05 * (lv('tempo') + lv('tempo2') + lv('tempo3') + lv('tempo4') + lv('tempo5') + lv('tempo6')),
     segs: 6 + lv('segment') + lv('segment2') + lv('segment3') + lv('segment4'),
     gutConv: 1 + 0.1 * lv('darmflora'),                    // Darm: Ertrag je verdautem Brocken
     gutCap: GUT.cap0 + lv('magen'),                        // Magen: Portionen
     gutCilia: GUT.cilia0 + lv('zilien'),                   // Zilien im Darm
-    gutMem: lv('gedaechtnis') > 0,                         // eigene Stellung je Frucht
+    gutMem: WORLDS.map((w, i) => lv('gmem' + i) > 0),      // eigene Stellung je Frucht (Gedächtnis-Knoten)
     gutBile: lv('galle') > 0,                              // Gallen-Zilie eingebaut
     spP: spChances(), spOff: Object.assign({}, save.spOff),
   };

@@ -566,7 +566,63 @@ Umgesetzt nach dem Plan oben. Abweichungen und Werte:
   - Neu in `audio.js`: Instrumente steelpan, nylon, flute, rhodes, round; Trommeln snare, crackle, drip, conga; Tonleiter dorian; Akkorde m9, M9, 9, m7b5; je Song `lp` (Tiefpass) und `gain` (Lautstärke, Pflaume 1,45, Kürbis 1,15, damit sie so laut sind wie die anderen). Exporte zum Anhören: `musik/chompillar-pflaume|apfel|kuerbis-120bpm.wav`.
 - Noch offen: Der Upgrade-Baum wird mit sieben Ringen außen eng, die Beschriftungen überlappen teils.
 
-## Plan: Setzkasten und Fressbuch (Sonderstellen umgesetzt in Stufe 10)
+## Umsetzung Stufe 19: Gallenblase als Röhre, Gedächtnis je Frucht, Darm-Baum, Fähigkeiten-Plätze, Icons
+
+Rückmeldung Bene (01.10.2026) zu Stufe 18.
+
+- **Gallenblase statt Gallen-Zilie:** eine kleine grüne Röhre (halbe Breite 15, halbe Länge 30), die man wie die Zilien verschiebt (Abstand zu den Zilien und zur Wand wird eingehalten). Kommt ein Brocken von oben in die Öffnung, läuft er in 0,4 s hindurch und fällt unten mit festem Tempo wieder heraus; Fett-Brocken sind danach emulgiert. Von außen prallt man weich ab, Punkte gibt sie keine. Die Stelle wird mit der Stellung gespeichert (`gutLay.g`). Erste freie Stelle links oben, nicht direkt unter dem Pförtner, damit man sie bewusst hinstellt.
+- **Gedächtnis je Frucht:** sechs Darm-Knoten `gmem0`–`gmem5`, je einer pro Frucht, bezahlt mit deren Fruchtwährung (300 / 600 / 900 / 1500 / 2500 / 5000). Hat eine Frucht ihr Gedächtnis, bekommt sie eine eigene Stellung (Pförtner, Zilien, Gallenblase); Früchte ohne teilen sich die gemeinsame. Was man umstellt, wird in der Stellung gespeichert, die gerade steht. Das alte Gedächtnis (für alle) wird beim Laden zu den Knoten für Johannisbeere, Kirsche und Walnuss.
+- **Darm-Upgrade-Baum** in der Seitenleiste: oben der Darm, darunter Zilien, Flora, Magen, Galle, unten die Gedächtnis-Leiste mit den Früchten (Fruchtfarbe als Rand, Währungs-Icon). Beschreibung, „jetzt → danach“ und Kaufen erst nach dem Anklicken; ein zweiter Klick auf den gewählten Knoten kauft (wie im großen Baum).
+- **Fähigkeiten:** Im Upgrade-Screen stehen nur noch die beiden Plätze (aktiv, passiv) mit Icon. Ein Klick klappt die freigeschalteten Fähigkeiten dieser Art auf (Beschreibung, Ausrüsten, Im Baum zeigen). Die Wahl einer neuen Fähigkeit nach einer Welt bleibt ein Popup.
+- **Icons:** Jeder Knoten im Upgrade-Baum, im Darm-Baum und in der Detail-Ansicht zeigt ein Strich-Icon (`UICON` in `data.js`: Kiefer, Mandibeln, Krit-Chance als Stern, Krit-Schaden als Funken, Maul, Kaukraft als Zahn, Ausdauer als Herz, Zähigkeit als Schild, Verdauung als Magen, Enzyme als Kolben, Sonderstellen, Tempo als Uhr, Segment, Aufladung als Blitz, je ein Icon pro Fähigkeit, Zilie, Bakterie, Magen+, Lesezeichen für Gedächtnis, Röhre für die Galle). Die Stufe steht als kleines Schild unten rechts am Knoten.
+
+## Umsetzung Stufe 20: Reiter, Popups, Baum ohne Namen
+
+Rückmeldung Bene (02.10.2026) zu Stufe 19.
+
+- **Upgrade-Baum ohne Namen:** Die Beschriftungen waren verdeckt und sind raus; die Icons stehen mittig im Knoten, der Name kommt beim Überfahren (Tooltip) und in der Detail-Ansicht. Im Darm-Baum bleiben kurze Namen (Zilien, Flora, Magen, Galle, Beere …), dort ist Platz.
+- **Icons nach Auswahl Bene:** Kiefer = Maul von vorn mit gefüllten Reißzähnen (B3, nach seiner Vorlage), Mandibeln = Kopf mit Zangen (M2), Maul = Schnapper (O4).
+- **Baum zum Verschieben:** Die Baumfläche wächst mit den Ringen (Abstände wie früher bei drei Ringen, mit allen Welten etwa doppelt so groß wie der Kasten), der Kasten zeigt einen Ausschnitt. Ziehen mit Maus oder Finger verschiebt ihn, ein Klick ohne Ziehen wählt weiter den Knoten. „Im Baum zeigen“ holt den Knoten in die Mitte.
+- **Reiter oben** (im Upgrade- und im Darm-Screen): „Upgrades“, „Verdauen n/5“ (leuchtet bei vollem Magen) und rechts „Neuer Run“ mit der gewählten Welt daneben. Ein Klick auf die Welt öffnet ein Popup zum Wählen und Freischalten (leuchtet, wenn eine neue Welt freigeschaltet werden kann). Dafür sind der Welten-Kasten, der Magen-Kasten und die Knöpfe „Nächster Run“, „Zu den Upgrades“ entfallen.
+- **Fähigkeiten** stehen als zwei Plätze in der Seitenleiste des Upgrade-Screens; ein Klick öffnet ein Popup mit den freigeschalteten Fähigkeiten dieser Art (Ausrüsten, Im Baum zeigen).
+- **Gallenblase verrutschte beim Einwerfen:** Zwei Ursachen. Die Stellung wird gerundet gespeichert; lag die Röhre danach knapp unter dem Mindestabstand zu einer Zilie, wurde sie an eine Standardstelle versetzt (jetzt 3 Einheiten Spielraum). Außerdem stand mit Gedächtnis oft noch die Stellung einer anderen Frucht da, und beim Einwurf glitt alles in die Stellung des eingeworfenen Brockens. Jetzt zeigt der Darm immer schon die Stellung des markierten Brockens; was man verschiebt, gilt für ihn.
+
+## Umsetzung Stufe 21: Darm-Upgrades als eigene Seite, Zoom, Popups, Logo
+
+Rückmeldung Bene (02.10.2026).
+
+- **Reiter:** Upgrades · Darm-Upgrades · Verdauen n/5 · Neuer Run (Welt ▾). Die Darm-Upgrades haben eine eigene Seite (Baum links, Kontostand und Detail rechts); im Darm-Screen steht rechts nur noch die Liste der entdeckten Ausgänge. Kauft man mehr Zilien oder die Gallenblase, werden alle gespeicherten Stellungen angepasst (Neues an freier Stelle).
+- **Zoom im Upgrade-Baum:** Mausrad (um den Mauszeiger), zwei Finger oder die Knöpfe + / −. Kleinste Stufe: der ganze Baum passt in den Kasten; größte: 1,8-fach. Ziehen verschiebt weiter.
+- **Popups** schließen sich bei einem Klick daneben. Auch die Wahl der neuen Fähigkeit lässt sich wegklicken; sie bleibt offen und steht als Knopf „Neue Fähigkeit wählen“ über den Fähigkeiten-Plätzen.
+- **Detail hervorgehoben:** Die Beschreibung des gewählten Knotens steht direkt unter dem Kontostand in einer hervorgehobenen Karte (Rahmen und Hintergrund in der Akzentfarbe, größeres Icon); die Fähigkeiten-Plätze stehen darunter.
+- **Logo** (nach fünf Entwürfen, Wahl Bene: Monogramm-Richtung): Der Raupenkörper formt das „C“, läuft unten unter dem „h“ entlang, und der Kopf ist das „o“; Rest in Bricolage Grotesque. Der Körper wird nach dem Laden der Schrift passend zur gemessenen Breite gezeichnet (`js/logo.js`), die Segmente werden vom Schwanz zum Kopf dicker. Funktioniert im hellen und dunklen Modus und auf dem Handy.
+- **Logo, Überarbeitung** (Wahl Bene: Richtung „Hüpfend“ mit Glitzer und Krümelspur): Die Raupe formt nur noch das „C“ (oval, nach rechts offen, vom dünnen Schwanz unten zum Kopf oben). Der Kopf mit offenem Maul hat oben links ein Stück aus dem Stamm des „h“ gebissen (Zahnabdrücke, rechts bleibt das h auf voller Länge), Krümel fallen vom Biss nach unten. „hompillar“ in Fredoka Bold als runde Sticker-Buchstaben: Creme-Verlauf, dunkelbraune Kontur, Schlagschatten, Glanzpunkt je Buchstabe, leicht gedreht und versetzt (hüpfend). Der i-Punkt ist eine Beere, dazu ein paar Glitzer-Sternchen. Das Logo ist eine fertige Grafik `img/logo.svg` mit der Schrift als Pfaden, braucht also keine Webschrift und kein Skript mehr (`js/logo.js` wird nicht mehr geladen). Weitere besprochene Details für später: Saftspritzer am Biss, Bissen im Maul, Ranke aus dem r, Tautropfen, Mini-Raupe im p.
+
+## Umsetzung Stufe 22: Setzkasten mit 30 Fundstücken
+
+Auswahl und Werte Bene (14.10.2026), Liste siehe "Plan: Setzkasten und Fressbuch".
+
+- **Neue Dateien:** `js/fund.js` (Daten der Fundstücke, Stufen, Fundstelle im Run, Fruchtzustände, Wirkungen) und `js/setzkasten.js` (Seite). Spielstand: `save.fund` (id → Stufe 1–3), `save.fundNew` (noch nicht angesehen), `save.fundKeep` (Lagerkürbis, je Welt), `save.sorbitN` (Zähler für Sorbit).
+- **Fundstelle:** goldener Schimmer mit funkelnden Sternen, sichtbar durch die Schale. Gezählt, sobald die Mitte weggefressen ist ("Fundstück!"). Im Ergebnis-Fenster erscheint eine eigene Karte mit Name, Wirkung und echtem Fakt; verpasste Stellen werden dort auch erwähnt. Solange die Stelle funkelt, steht in der Run-Leiste "Fundstelle: funkelt" und unten ein Hinweis.
+- **Setzkasten-Reiter** zwischen Darm-Upgrades und Verdauen, mit Zähler (n/30). Er leuchtet golden bei neuen Funden; im Kasten tragen sie dann ein "neu". Holzkasten mit einer Reihe je Welt, leere Fächer mit "?". Rechts die Karte: Wirkung, Fakt, wo es wirkt, Stufe als Punkte, Vorschau der nächsten Stufe und Veredeln.
+- **Startanzeige** zeigt jetzt mehrere Zeilen: Sonderstellen, Dörrpflaume, überreif, Halloween-Kürbis, Johannistag, gemerkte Fundstelle.
+- **Technik der Wirkungen:**
+  - Ertrag: `stats().yieldW` × Ertrags-Fundstück der Welt. Dörrpflaume und überreif wirken je Pixel über `pxYield()`.
+  - Ausdauer je Biss richtet sich jetzt nach dem teuersten getroffenen **Pixel** (`pxCost`), nicht mehr nur nach der Schicht. So kosten Risse (Krähenwurf) wenig, und Kirschkernkissen senkt die Kosten in Kernschichten.
+  - Risse sind Holzschalen-Pixel mit niedriger Härte. Sie nehmen beim Kraft-Budget Kraft aus jeder Schicht an (`softPx`).
+  - Scheidewand: In der Walnuss gibt es dann eine eigene Schicht 5 "Trennwand" (so weich und günstig wie die Hülle, ×1/×2/×3 Nussholz). Sie steht in Anzeige und Ergebnis.
+  - Dörrpflaume: Raster mit 0,8-fachem Radius, dunkler mit Falten (Höhenlinien), schrumpeliger Rand. Ersetzt die Sonderstelle.
+  - Überreif: saftige Schichten Härte ×0,6, Ertrag ×1,3, Flecken auf der Schale, 3–5 Öffnungen.
+  - Apfelwickler: geschwungener Gang mit braunem Fraßrand, breit genug für den Kopf (Stufe 2 breiter, Stufe 3 zwei Gänge).
+  - Halloween-Kürbis: Fratze quer durch die Frucht (Dreiecksaugen, Nase, Grinsen mit Zähnen). Die Mundwinkel durchbrechen die Schale. Hinter der Frucht flackert ein Kerzenschein, der durch Fratze und Hohlraum leuchtet.
+  - Nusstinte: Fallbahn mit derselben Physik vorausgerechnet und zwischengespeichert, solange sich die Stellung nicht ändert.
+  - Sorbit: fest gezählt, kein Zufall. Der Brocken startet mit seinen Punkten noch einmal am Pförtner; ausgezahlt wird erst am zweiten Ausgang.
+  - Kürbissuppe: 7–9 Kerne, jeder mit dem Anteil eines von 5. Mit festem Pförtner bei der Grundstellung brachte das 64 → 84 (7 Kerne) → 93 (9 Kerne) Punkte.
+- **Admin:** neuer Abschnitt "Fundstücke" (Stufe je Fundstück, alle auf 1/3/weg), dazu "Fundstelle: normal / in jeder Frucht / nie" und "Frucht: normal / überreif / Dörrpflaume / Halloween". "Alles freischalten" setzt auch alle Fundstücke auf Stufe 3.
+- **Nebenbei:** "Dieser Apfel hat …" und "Der ganze Kürbis ist weg" statt "Diese Apfel" und "Die ganze Kürbis".
+- Bot-Simulation (30 Runs, ohne Ansteuern der Stelle): Das erste Fundstück kam wie geplant im 5. Run.
+
+## Plan: Setzkasten und Fressbuch (Sonderstellen umgesetzt in Stufe 10, Setzkasten in Stufe 22)
 
 Ziel: Im Run gibt es etwas anzusteuern, und es gibt Langzeitziele ohne Prestige. Reihenfolge der Umsetzung: Sonderstellen → Setzkasten → Fressbuch → danach neue Früchte.
 
@@ -584,32 +640,49 @@ Werte später per Simulation, Häufigkeit und Größe mit der Fruchtgröße skal
 
 ### Setzkasten (Fundstücke / Relikte)
 
-- Im Menü hängt ein **Holzkasten mit Fächern**, eine Reihe pro Welt. Leere Fächer zeigen ein "?", man sieht also, wie viele es gibt.
-- **4–5 Fundstücke pro Welt.** In der Frucht ist nur eine **funkelnde Stelle** zu sehen, nicht was es ist. Freigelegt wird sie wie normales Material. Erst am Run-Ende wird enthüllt, was es war (eigene kleine Enthüllung im Ergebnis-Fenster), dann wandert es in den Setzkasten.
-- **Häufigkeit (entschieden):** Jede Frucht hat mit **10 % Wahrscheinlichkeit** eine funkelnde Stelle, reines Glück, keine Garantie und kein Mitleidszähler. **Ausnahme: das allererste Fundstück ist gesetzt** und kommt sicher in der Johannisbeere, bevor man die Kirsche freischalten kann (Vorschlag: im 5. Run, zu dem Zeitpunkt ist die Schale meist schon durchbrochen; die Stelle liegt gut erreichbar im Fruchtfleisch). Welches Fundstück in einer Frucht liegt, wird zufällig aus den noch fehlenden der Welt gezogen. Nicht mitgenommene Funde verfallen mit der Frucht. Sind alle Fundstücke einer Welt gefunden, erscheinen dort keine mehr. Bei ~13 Runs pro Welt im ersten Durchgang findet man im Schnitt 1–2, den Rest beim Zurückkehren.
-- **Wirkung:** passiv und **immer aktiv**, keine Plätze zum Auswählen (entschieden). Ertragsboni gelten für **alle Fruchtwährungen** (z. B. "+8 % Saft aller Früchte"), nicht nur für die eigene Welt. Einige Fundstücke ändern das Verhalten, statt nur Zahlen zu erhöhen.
-- **Veredeln:** Jedes Fundstück hat Stufe 1–3, bezahlt mit der Kernwährung seiner Welt. Damit bekommen auch die Walnusskerne eine Verwendung.
-- Jedes Fach zeigt Name, Bonus und einen kurzen echten Fakt (das Thema ist echte Raupen- und Obstbiologie).
+Auswahl Bene (14.10.2026), umgesetzt in Stufe 22.
 
-Entwurf der Fundstücke (Namen und Boni noch offen):
+- Im Menü gibt es einen eigenen Reiter **Setzkasten**: ein **Holzkasten mit Fächern**, eine Reihe pro Welt. Leere Fächer zeigen ein "?", man sieht also, wie viele es gibt.
+- **5 Fundstücke pro Welt** (30 insgesamt). In der Frucht ist nur eine **funkelnde Stelle** zu sehen, nicht was es ist. Freigelegt wird sie wie normales Material (gezählt, sobald ihre Mitte weggefressen ist). Erst am Run-Ende wird enthüllt, was es war (eigene kleine Enthüllung im Ergebnis-Fenster), dann wandert es in den Setzkasten.
+- **Häufigkeit (entschieden):** Jede Frucht hat mit **10 % Wahrscheinlichkeit** eine funkelnde Stelle, reines Glück, keine Garantie und kein Mitleidszähler. **Ausnahme: das allererste Fundstück ist gesetzt** und kommt sicher in der Johannisbeere ab dem 5. Run; die Stelle liegt gut erreichbar im Fruchtfleisch auf der Seite, von der die Raupe kommt. Welches Fundstück in einer Frucht liegt, wird zufällig aus den noch fehlenden der Welt gezogen. Nicht mitgenommene Funde verfallen mit der Frucht (außer mit dem Lagerkürbis). Sind alle Fundstücke einer Welt gefunden, erscheinen dort keine mehr. Die Stelle liegt im Fruchtfleisch, in der Walnuss im Nusskern.
+- **Wirkung:** passiv und **immer aktiv**, keine Plätze zum Auswählen. Je Welt bringt **genau ein Fundstück mehr Ertrag, und zwar nur von der eigenen Fruchtwährung** (+15 / 25 / 35 %). Die anderen vier ändern, wie eine Frucht oder der Run abläuft. Ob sie nur in ihrer eigenen Frucht oder in allen wirken, steht beim Fundstück.
+- **Veredeln:** Jedes Fundstück hat Stufe 1–3, bezahlt mit der Kernwährung seiner Welt (Stufe 2 / Stufe 3): Beerenkerne 20 / 60, Kirschkerne 100 / 300, Walnusskerne 150 / 450, Pflaumensteine 750 / 2.250, Apfelkerne 450 / 1.350, Kürbiskerne 600 / 1.800 (Vorschlag, beim Anspielen prüfen).
+- Jedes Fach zeigt Name, Wirkung und einen kurzen echten Fakt.
 
-| Welt | Fundstück | Echt | Bonus (Stufe 1) |
-|---|---|---|---|
-| Johannisbeere | Blütenrest | der vertrocknete Blütenstern an der Beere | +8 % Saft aller Früchte |
-| Johannisbeere | Tautropfen | – | −8 % Grundverbrauch |
-| Johannisbeere | Honigtau | Ausscheidung der Blattläuse auf Johannisbeeren | Sonderstellen bringen +25 % |
-| Johannisbeere | Glasflügler-Schuppe | Johannisbeer-Glasflügler, dessen Raupe sich in die Triebe bohrt | +15 % Schaden an der Außenschicht |
-| Johannisbeere | Rispenstiel | Johannisbeeren wachsen an Rispen | +1 Segment |
-| Kirsche | Kirschmade | Larve der Kirschfruchtfliege, ein "Mitbewohner" | Jeder 5. Biss beißt ein zweites Mal daneben mit |
-| Kirsche | Kirschgummi | Harztropfen an Kirschbäumen | Aktive Fähigkeit wirkt 20 % länger |
-| Kirsche | Vogelpick | Vögel picken reife Kirschen an | Jede Frucht startet mit einem Loch in der Haut |
-| Kirsche | Kirschstiel | – | +25 % Krit-Schaden |
-| Walnuss | Juglon-Fleck | brauner Farbstoff der Walnusshülle | Material rund um den Kopf wird bei jedem Biss 15 % weicher |
-| Walnuss | Eichhörnchen-Zahnspur | – | Die Holzschale hat einen Riss |
-| Walnuss | Nussöl | Walnüsse sind sehr fettreich | −10 % Grundverbrauch |
-| Walnuss | Krähenfeder | Krähen lassen Walnüsse fallen, damit sie platzen | Harte Schichten −10 % Härte |
+| Welt | Fundstück | Echt | Wirkung (Stufe 1 / 2 / 3) | Wo |
+|---|---|---|---|---|
+| Johannisbeere | Blütenrest | der vertrocknete Blütenkelch an der Beere | +15 / 25 / 35 % Beerensaft | Johannisbeere |
+| Johannisbeere | Honigtau | Blattläuse auf Johannisbeeren scheiden Zuckersaft aus | Jede geplatzte Saftblase (auch Öltropfen) gibt 3 / 5 / 7 % der Ausdauer zurück | alle |
+| Johannisbeere | Vitamin C | Johannisbeeren sind reich an Vitamin C | Nach einem Krit ist der nächste Biss mit 50 / 75 / 100 % Chance auch einer (nie zwei Folge-Krits hintereinander) | alle |
+| Johannisbeere | Johannistag | sie reifen um den 24. Juni, daher der Name | Jeder 10. / 8. / 6. Run (über alle Welten gezählt) hat doppelte Fundchance | alle |
+| Johannisbeere | Gallmilbe | lässt Knospen kugelig anschwellen | Sonderstellen +20 / 30 / 40 % größer | alle |
+| Kirsche | Herzkirsche | Süßkirschen-Sorte mit weichem Fleisch | +15 / 25 / 35 % Kirschsaft | Kirsche |
+| Kirsche | Kernspucken | Kirschkern-Weitspucken ist ein echter Wettbewerb | Säurespucke fliegt doppelt so weit und dringt erst 4 / 7 / 10 Pixel ein, bevor sie platzt | alle |
+| Kirsche | Kirschgummi | Harz, das aus verletzter Rinde quillt | Aktive Fähigkeit wirkt 20 / 30 / 40 % länger (Schub: weiter, Spucke: längere Pfütze) | alle |
+| Kirsche | Kirschessigfliege | legt Eier in reife Früchte, die dann weich werden | Faulstellen +5 / 10 / 15 Prozentpunkte häufiger (auch ohne Upgrade, außer ausgeschaltet) und 25 % größer | alle |
+| Kirsche | Kirschkernkissen | Kirschkerne speichern Wärme | Bisse in Kerne und Steine kosten 25 / 35 / 45 % weniger Ausdauer | alle |
+| Walnuss | Hirnwindung | die Nuss sieht aus wie ein Gehirn | +15 / 25 / 35 % Nussholz | Walnuss |
+| Walnuss | Nusstinte | aus der grünen Hülle machte man Tinte | Im Darm zeigt eine gestrichelte Linie die Fallbahn des nächsten Brockens bis zur 1. / 2. Zilie / ganz | Darm |
+| Walnuss | Scheidewand | dünne Holzwände trennen die Kernhälften | Die inneren Trennwände sind so weich wie die grüne Hülle und kosten so wenig Ausdauer; Stufe 2 / 3: bringen ×2 / ×3 Nussholz | Walnuss |
+| Walnuss | Krähenwurf | Krähen lassen Walnüsse auf Straßen fallen | Beim ersten Biss in die Holzschale springen 2 / 3 / 4 Risse durch die Schale | Walnuss |
+| Walnuss | Nussknacker | die Holzfigur aus dem Erzgebirge | Der erste Biss in die Schale (Walnuss: Holzschale) trifft in jedem Run mit 3- / 4- / 5-facher Bisskraft | alle |
+| Pflaume | Hauszwetschge | die klassische Backpflaume | +15 / 25 / 35 % Pflaumenmus | Pflaume |
+| Pflaume | Sorbit | Zuckeralkohol, wirkt abführend | Jeder 2. Pflaumen-Brocken (Stufe 2: zwei von drei, Stufe 3: jeder) läuft ein zweites Mal durch den Darm und sammelt weiter | Darm |
+| Pflaume | Dörrpflaume | Trocknen konzentriert den Zucker | 10 / 15 / 20 % der Pflaumen sind Dörrpflaumen (statt einer Sonderstelle): dunkler, schrumpelig, 20 % kleiner, ×1,3 / 1,4 / 1,5 Ertrag je Pixel | Pflaume |
+| Pflaume | Wachsreif | der weiße Belag lässt sich abwischen | Außenschicht, die der Körper streift, wird alle 0,3 s um 4 / 6 / 8 % weicher (bis auf 25 %) | alle |
+| Pflaume | Gärung | gärende Pflaumen werden zu Most und Schnaps | Faulstellen bringen ×1,5 / 1,75 / 2 | alle |
+| Apfel | Streuobstwiese | Hochstamm-Wiesen mit alten Sorten | +15 / 25 / 35 % Apfelsaft | Apfel |
+| Apfel | Apfelwickler | "der Wurm im Apfel" | Ein Gang führt von einer zufälligen Stelle der Schale bis ans Kerngehäuse; Stufe 2: breiter, Stufe 3: zwei Gänge | Apfel |
+| Apfel | Ethylen | Äpfel geben Reifegas ab | 15 / 20 / 25 % der Früchte sind überreif: weicheres Fruchtfleisch mit ×1,3 Ertrag, ein paar Öffnungen in der Schale | alle |
+| Apfel | Mehlig | bei mehligen Äpfeln lösen sich die Zellen | Bisse ins weiche Material reichen 30 / 40 / 50 % weiter | alle |
+| Apfel | Glasigkeit | Zucker sammelt sich in glasigen Stellen | Zuckerkristalle im Apfel +50 / 75 / 100 % größer | Apfel |
+| Kürbis | Riesenkürbis | Rekordkürbisse wiegen über 1.200 kg | +15 / 25 / 35 % Kürbismus | Kürbis |
+| Kürbis | Halloween-Kürbis | geschnitzter Kürbis mit Fratze | Jeder 4. / 3. / 2. Kürbis hat ein Gesicht: zwei Augen und ein Mund als Löcher in der Schale | Kürbis |
+| Kürbis | Lagerkürbis | Kürbisse halten sich monatelang | Eine nicht erreichte funkelnde Stelle bleibt 1 / 2 Runs / bis zum Fund für die nächsten Runs dieser Welt erhalten | alle |
+| Kürbis | Ranke | Kürbisse klettern mit Ranken | Schub reicht 50 / 75 / 100 % weiter | alle |
+| Kürbis | Kürbissuppe | – | Im Darm platzen Kürbis-Brocken in 7 / 8 / 9 statt 5 Kerne, jeder zählt wie vorher | Darm |
 
-Später passen z. B. Pflaumenwickler (Pflaume) und Apfelwickler ("der Wurm im Apfel").
+Nicht gewählt (14.10.2026), als Ideen: Rispe, Kernkranz, Amselschnabel, Glasflügler, Gelee; Kirschmade, Doppelkirsche, Regenriss, Steinnaht, Vogelpick; Schalennaht, Juglon, Eichhörnchenversteck, Tannenhäher, Nussöl, Walnussfruchtfliege, Luftspalt, Grüne Nuss, Taube Nuss, Röstaroma; Pflaumenwickler, Steinlöser, Narrentasche, Steinkante, Wespenfraß; Fallobst, Fünfstern, Bräunung, Apfelschorf, Kompott; Ölkürbis, Klopfprobe, Faserzug, Rippen, Kürbisbiene.
 
 ### Fressbuch (Meilensteine)
 
@@ -696,7 +769,7 @@ Weitere Seiten wie Newgrounds, CrazyGames oder Poki sind eher für kostenlose Br
 - Ausdauer- und Ertragswerte sind per Bot-Simulation vorjustiert (siehe "Umsetzung Stufe 1"), müssen aber noch von Hand angespielt werden.
 - Kosten- und Wachstumskurven feinjustieren, sobald man selbst gespielt hat.
 - Welten 4–6 (Pflaume, Apfel, Kürbis): Plan steht (siehe oben), Werte beim Anspielen prüfen.
-- Wofür Walnusskerne ausgegeben werden (bis zur Pflaume noch ohne Verwendung).
+- Fundstücke (Stufe 22) anspielen: Passen 10 % Fundchance, die Veredel-Kosten und die Stärke von Mehlig (Stufe 3: Reichweite ×1,5 in weichem Material) und Kirschessigfliege + Gallmilbe zusammen (Faulstellen werden sehr groß)?
 - Fähigkeiten-Balance weiter beobachten (Brennhaare und Gabeldrüse in der Johannisbeere stark).
 - Mitlaufende Kamera für große Früchte: geplant (siehe oben).
 - Neue Ausdauer (Stufe 9) von Hand anspielen, vor allem: Fühlt sich der Grundverbrauch im Stand zu streng an? Ist die Walnuss mit 2,2/s zu hektisch?

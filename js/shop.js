@@ -24,12 +24,13 @@ function buildTree(){
   const root = document.createElement('div');
   root.className = 'node root';
   root.style.left = '50%'; root.style.top = '50%';
-  root.innerHTML = '<span class="lbl">Raupe</span>';
+  root.title = 'Raupe';
   tree.appendChild(root);
   for (const u of UPG.filter(inTree)){
     const b = document.createElement('button');
     b.className = 'node' + (u.ab ? ' abn' : ''); b.id = 'n-' + u.id;
     b.addEventListener('click', () => {
+      if (pan.moved) return;                                     // war ein Verschieben, kein Klick
       if (selected === u.id){ if (canBuy(u)) buy(u); else AU.sfx('nope'); }
       else { selected = u.id; AU.sfx('tick'); renderShop(); }
     });
@@ -49,6 +50,15 @@ function buy(u){
   renderShop();
 }
 
+/* Kontostand aller freigeschalteten Welten (Upgrade- und Darm-Upgrade-Seite) */
+function bankHtml(){
+  let bank = '';
+  for (let w = 0; w < save.unlocked; w++){
+    const here = w === save.world ? ' class="here"' : '';
+    bank += `${icon(w, 'f')}<b${here} title="${WORLDS[w].fruitCur}">${fmtInt(cur(w, 'f'))}</b>${icon(w, 'k')}<b${here} title="${WORLDS[w].coreCur}">${fmtInt(cur(w, 'k'))}</b>`;
+  }
+  return bank;
+}
 function costHtml(c){ return money(c.w, 'f', c.f) + (c.k ? ' + ' + money(c.kw, 'k', c.k) : ''); }
 function missing(c){
   const a = [];
@@ -57,8 +67,71 @@ function missing(c){
   return a.join(' + ');
 }
 
+/* Baum größer als sein Kasten: Die Fläche wächst mit den Ringen (so viel Platz wie früher bei drei Ringen),
+   der Kasten zeigt einen Ausschnitt. Ziehen verschiebt, Mausrad, zwei Finger oder die Knöpfe zoomen
+   (kleinste Stufe: ganzer Baum im Kasten, größte: 1,8-fach). */
+const pan = { x: 0, y: 0, S: 0, base: 0, zoom: 1, down: null, moved: false, init: false, ptrs: new Map(), pinch: null };
+const ZOOM_MAX = 1.8;
+const treeBox = () => $('tree').parentElement;
+function zoomMin(){ const b = treeBox(); return Math.min(1, Math.max(b.clientWidth, b.clientHeight) / (pan.base || 1)); }
+function treeSize(v){ const box = treeBox(); return Math.round(Math.max(box.clientWidth, box.clientHeight) * Math.max(1, v / 40)); }
+function placeTree(){
+  const t = $('tree'), box = treeBox(), bw = box.clientWidth, bh = box.clientHeight;
+  const cx = (bw - pan.S) / 2, cy = (bh - pan.S) / 2;            // kleiner als der Kasten: mittig
+  pan.x = pan.S <= bw ? cx : Math.min(0, Math.max(bw - pan.S, pan.x));
+  pan.y = pan.S <= bh ? cy : Math.min(0, Math.max(bh - pan.S, pan.y));
+  t.style.width = pan.S + 'px';
+  t.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
+}
+function centerTreeOn(px, py){                                   // px, py in Prozent der Baumfläche
+  const box = treeBox();
+  pan.x = box.clientWidth / 2 - px / 100 * pan.S; pan.y = box.clientHeight / 2 - py / 100 * pan.S; placeTree();
+}
+function zoomAt(f, mx, my){                                      // mx, my: Punkt im Kasten, der stehen bleibt
+  const z = Math.max(zoomMin(), Math.min(ZOOM_MAX, pan.zoom * f));
+  if (z === pan.zoom) return;
+  const rx = (mx - pan.x) / pan.S, ry = (my - pan.y) / pan.S;
+  pan.zoom = z; pan.S = Math.round(pan.base * z);
+  pan.x = mx - rx * pan.S; pan.y = my - ry * pan.S; placeTree();
+}
+{
+  const box = treeBox();
+  box.insertAdjacentHTML('beforeend', '<span class="treehint">Ziehen zum Verschieben, Mausrad zum Zoomen</span>'
+    + '<div class="zoombtns"><button type="button" data-zoom="1.25" aria-label="Hineinzoomen">+</button><button type="button" data-zoom="0.8" aria-label="Herauszoomen">−</button></div>');
+  const local = e => { const r = box.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  for (const b of box.querySelectorAll('[data-zoom]')){
+    b.addEventListener('pointerdown', e => e.stopPropagation());
+    b.onclick = () => zoomAt(+b.dataset.zoom, box.clientWidth / 2, box.clientHeight / 2);
+  }
+  box.addEventListener('wheel', e => { e.preventDefault(); const [mx, my] = local(e); zoomAt(Math.exp(-e.deltaY * 0.0015), mx, my); }, { passive: false });
+  box.addEventListener('pointerdown', e => {
+    pan.ptrs.set(e.pointerId, local(e));
+    if (pan.ptrs.size === 2){                                      // zwei Finger: zoomen
+      const [a, b] = [...pan.ptrs.values()]; pan.pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) }; pan.down = null; pan.moved = true; return;
+    }
+    pan.down = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y, id: e.pointerId }; pan.moved = false;
+  });
+  box.addEventListener('pointermove', e => {
+    if (pan.ptrs.has(e.pointerId)) pan.ptrs.set(e.pointerId, local(e));
+    if (pan.pinch && pan.ptrs.size === 2){
+      const [a, b] = [...pan.ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      zoomAt(d / pan.pinch.d, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); pan.pinch.d = d; return;
+    }
+    if (!pan.down) return;
+    const dx = e.clientX - pan.down.x, dy = e.clientY - pan.down.y;
+    if (!pan.moved && Math.hypot(dx, dy) < 6) return;
+    if (!pan.moved){ pan.moved = true; box.classList.add('panning'); box.setPointerCapture(pan.down.id); }
+    pan.x = pan.down.px + dx; pan.y = pan.down.py + dy; placeTree();
+  });
+  const up = e => { pan.ptrs.delete(e.pointerId); if (pan.ptrs.size < 2) pan.pinch = null; pan.down = null; box.classList.remove('panning'); setTimeout(() => { if (!pan.ptrs.size) pan.moved = false; }, 0); };
+  box.addEventListener('pointerup', up); box.addEventListener('pointercancel', up);
+  addEventListener('resize', () => { if (screen === 'shop') renderTree(); });
+}
 function renderTree(){
   const v = RINGS[Math.min(RINGS.length - 1, save.unlocked + 1)] + 8, z = 50 / v;
+  const base = treeSize(v), grew = base !== pan.base;
+  pan.base = base; pan.zoom = Math.max(zoomMin(), Math.min(ZOOM_MAX, pan.zoom)); pan.S = Math.round(base * pan.zoom);
+  if (!pan.init || grew){ pan.init = true; centerTreeOn(50, 50); } else placeTree();
   const svg = $('treeLines');
   svg.setAttribute('viewBox', `${50 - v} ${50 - v} ${2 * v} ${2 * v}`);
   let s = '';
@@ -79,28 +152,23 @@ function renderTree(){
     b.classList.toggle('can', canBuy(u));
     b.classList.toggle('sel', selected === u.id);
     const off = u.spKind && (save.spOff || {})[u.spKind];
-    b.innerHTML = `<span class="lv">${l}<small>/${u.max}</small></span><span class="lbl">${u.name}${off ? ' (aus)' : ''}</span>`;
+    b.innerHTML = `${nodeIcon(u)}<span class="lv">${l}<small>/${u.max}</small></span>`;    // keine Namen im Baum, die Icons reichen
+    b.title = `${u.name}${off ? ' (aus)' : ''}: Stufe ${l}/${u.max}`;
     b.setAttribute('aria-label', `${u.name}, Stufe ${l} von ${u.max}` + (open ? '' : ', gesperrt'));
   }
   svg.innerHTML = s;
 }
 
 function renderShop(){
-  let bank = '';
-  for (let w = 0; w < save.unlocked; w++){
-    const here = w === save.world ? ' class="here"' : '';
-    bank += `${icon(w, 'f')}<b${here} title="${WORLDS[w].fruitCur}">${fmtInt(cur(w, 'f'))}</b>${icon(w, 'k')}<b${here} title="${WORLDS[w].coreCur}">${fmtInt(cur(w, 'k'))}</b>`;
-  }
-  $('bank').innerHTML = bank;
+  $('bank').innerHTML = bankHtml();
   $('sub').textContent = `${WORLDS[save.world].name} · Upgrades`;
 
   renderTree();
-  renderStomach();
 
   if (!visible(U[selected]) || !inTree(U[selected])) selected = 'kiefer';
   const u = U[selected], l = lv(u.id), open = unlocked(u), maxed = l >= u.max;
   const c = costOf(u), wn = WORLDS[c.w].name;
-  let html = `<div class="branch">${u.br} · ${wn}</div><h3>${u.name}</h3>
+  let html = `<div class="branch">${u.br} · ${wn}</div><h3 class="sh">${nodeIcon(u).replace('class="ni"', 'class="si"')}${u.name}</h3>
     <p>${u.desc}</p>
     <p class="note">Stufe ${l} von ${u.max}</p>`;
   if (!open) html += `<p class="req">Braucht ${U[u.parent].name} auf Stufe ${u.need}.</p>`;
@@ -133,7 +201,6 @@ function renderShop(){
     S = stats(); persist(); renderShop();
   };
 
-  $('nextRun').textContent = `Nächster Run: ${WORLDS[save.world].name}`;
   const L = save.last;
   if (L){
     const w = WORLDS[L.w];
@@ -141,19 +208,24 @@ function renderShop(){
       `<br>${layerKeys(w).map(k => `${w.layers[k].name} ${Math.round(L.p[k] || 0)} %`).join(', ')}.`;
   } else $('lastRun').innerHTML = '';
 
-  renderWorlds();
   renderAbilities();
+  renderTabs();
 }
 
-/* Magen im Upgrade-Screen: Portionen, die auf den Darm warten */
-function renderStomach(){
-  const el = $('stomach'), n = save.gut.p.length, cap = S.gutCap;
-  const dots = Array.from({ length: cap }, (_, i) => `<span class="pdot${i < n ? ' on' : ''}" ${i < n ? `style="background:${WORLDS[save.gut.p[i].w].color}"` : ''}></span>`).join('');
-  el.innerHTML = `<div class="meter-head"><span>Magen</span><output>${n} / ${cap} Portionen</output></div><div class="pdots">${dots}</div>
-    <p class="note">${n >= cap ? 'Voll. Erst verdauen, sonst geht nichts mehr hinein.' : n ? 'Jeder Run füllt eine Portion. Verdauen bringt zusätzliche Fruchtwährung.' : 'Jeder Run füllt eine Portion Nahrungsbrei. Im Darm wird daraus zusätzliche Fruchtwährung.'}</p>
-    <button class="wide${n >= cap ? ' primary' : ''}" id="toGut2">${n ? 'Verdauen' : 'Zum Darm (Upgrades)'}</button>`;
-  $('toGut2').onclick = () => openGut();
+/* Reiter oben: Verdauen zeigt die Portionen im Magen, Neuer Run die gewählte Welt (Klick darauf: Welt wählen) */
+function renderTabs(){
+  const n = save.gut.p.length, cap = S.gutCap, w = WORLDS[save.world];
+  $('tabGutN').textContent = `${n}/${cap}`;
+  $('tabBoxN').textContent = `${fundCount()}/${FUND.length}`;
+  $('tabBox').classList.toggle('new', !!(save.fundNew && save.fundNew.length));
+  $('tabGut').classList.toggle('full', n >= cap);
+  $('tabWorld').innerHTML = `<span class="dot" style="background:${w.color}"></span>${w.name} <span class="caret">▾</span>`;
+  $('tabWorld').title = 'Welt wählen oder freischalten';
+  const canUnlock = save.unlocked < WORLDS.length && cur(save.unlocked - 1, 'k') >= WORLDS[save.unlocked].unlockCost;
+  $('tabWorld').classList.toggle('new', canUnlock);
 }
+function openWorlds(){ renderWorlds(); if (!$('worldDlg').open) $('worldDlg').showModal(); }
+
 
 function renderWorlds(){
   let h = '';
@@ -178,8 +250,8 @@ function renderWorlds(){
     h += `<div class="wrow future"><span class="dot" style="background:${f.color}"></span><span class="wname">${f.name}<small>${txt}</small></span></div>`;
   });
   $('worlds').innerHTML = h;
-  for (const b of document.querySelectorAll('[data-pick]')) b.onclick = () => { save.world = +b.dataset.pick; persist(); AU.sfx('tick'); renderShop(); };
-  for (const b of document.querySelectorAll('[data-unlock]')) b.onclick = () => unlockWorld(+b.dataset.unlock);
+  for (const b of document.querySelectorAll('[data-pick]')) b.onclick = () => { save.world = +b.dataset.pick; persist(); AU.sfx('tick'); $('worldDlg').close(); if (screen === 'shop') renderShop(); else renderTabs(); };
+  for (const b of document.querySelectorAll('[data-unlock]')) b.onclick = () => { $('worldDlg').close(); if (screen !== 'shop') show('shop'); unlockWorld(+b.dataset.unlock); };
 }
 
 function unlockWorld(w){
@@ -226,7 +298,7 @@ function openChoice(){
   for (const b of cd.querySelectorAll('[data-choose]')) b.onclick = () => choose(b.dataset.choose);
   if (!cd.open) cd.showModal();
 }
-$('choiceDlg').addEventListener('cancel', e => e.preventDefault());
+// Die Wahl darf man wegklicken; sie bleibt offen und lässt sich in der Seitenleiste wieder öffnen
 
 function choose(id){
   const c = save.choice;
@@ -244,29 +316,40 @@ function choose(id){
   renderShop();
 }
 
+/* Fähigkeiten: zwei Plätze (aktiv, passiv) in der Seitenleiste. Ein Klick öffnet ein Fenster mit den
+   freigeschalteten Fähigkeiten dieser Art; dort wird gewechselt. */
+let abilOpen = null;
+const kindOf = slot => slot === 'active' ? 'aktiv' : 'passiv';
 function renderAbilities(){
-  const A = save.abil;
+  const A = save.abil, owned = Object.keys(A.own);
   $('slots').innerHTML = ['active', 'passive'].map(slot => {
-    const id = A[slot];
-    return `<div class="slot${id ? ' full' : ''}">${slot === 'active' ? `Aktiv, alle ${S.cd} s` : 'Passiv'}<b>${id ? ABIL[id].name : 'leer'}</b></div>`;
+    const id = A[slot], n = owned.filter(x => ABIL[x].kind === kindOf(slot)).length;
+    return `<button class="slot${id ? ' full' : ''}" data-slot="${slot}" ${n ? '' : 'disabled'} title="${n ? 'Fähigkeit wechseln' : 'Noch keine freigeschaltet'}">
+      <span class="sh">${id ? `<svg class="si" viewBox="0 0 24 24" aria-hidden="true">${UICON[id]}</svg>` : ''}<span>${slot === 'active' ? `Aktiv, alle ${S.cd} s` : 'Passiv'}<b>${id ? ABIL[id].name : 'leer'}</b></span></span>
+      ${n > 1 ? `<span class="cnt">${n} ▾</span>` : ''}</button>`;
   }).join('');
-  const owned = Object.keys(A.own);
-  if (!owned.length){
-    $('abils').innerHTML = `<p class="note">Nach jeder geschafften Welt wählst du aus drei Fähigkeiten eine aus. Die erste gibt es beim Freischalten der Kirsche.</p>`;
-    return;
-  }
-  $('abils').innerHTML = owned.map(id => {
-    const a = ABIL[id], slot = a.kind === 'aktiv' ? 'active' : 'passive', eq = A[slot] === id;
-    const Ls = abL(id);
-    return `<div class="acard"><h3>${a.name} <small>${a.kind} · Ausbau ${Ls.join(' / ')}</small></h3>
+  if (save.choice) $('slots').insertAdjacentHTML('afterbegin', `<button class="wide primary" id="openChoice">Neue Fähigkeit wählen</button>`);
+  if ($('openChoice')) $('openChoice').onclick = () => openChoice();
+  for (const b of document.querySelectorAll('[data-slot]')) b.onclick = () => openAbil(b.dataset.slot);
+  if ($('abilDlg').open) renderAbilDlg();
+}
+function openAbil(slot){ abilOpen = slot; AU.sfx('tick'); renderAbilDlg(); if (!$('abilDlg').open) $('abilDlg').showModal(); }
+function renderAbilDlg(){
+  const A = save.abil, slot = abilOpen, list = Object.keys(A.own).filter(id => ABIL[id].kind === kindOf(slot));
+  $('abilTitle').textContent = slot === 'active' ? `Aktive Fähigkeit (alle ${S.cd} s)` : 'Passive Fähigkeit';
+  $('abils').innerHTML = list.map(id => {
+    const a = ABIL[id], eq = A[slot] === id, Ls = abL(id);
+    return `<div class="acard${eq ? ' eq' : ''}"><h3><span class="sh"><svg class="si" viewBox="0 0 24 24" aria-hidden="true">${UICON[id]}</svg>${a.name}</span> <small>Ausbau ${Ls.join(' / ')}</small></h3>
       <p>${a.desc(Ls)}</p>
-      <div class="row">${eq ? '<span class="note">ausgerüstet</span>' : `<button data-equip="${id}">Ausrüsten</button>`}
+      <div class="row">${eq ? '<span class="note">ausgerüstet</span>' : `<button class="primary" data-equip="${id}">Ausrüsten</button>`}
       <button data-show="${id}">Im Baum zeigen</button></div></div>`;
   }).join('');
   for (const b of document.querySelectorAll('[data-equip]')) b.onclick = () => {
-    const id = b.dataset.equip; A[ABIL[id].kind === 'aktiv' ? 'active' : 'passive'] = id; S = stats(); persist(); renderShop();
+    const id = b.dataset.equip; A[slot] = id; S = stats(); persist(); AU.sfx('tick'); $('abilDlg').close(); renderShop();
   };
   for (const b of document.querySelectorAll('[data-show]')) b.onclick = () => {
-    selected = `ab_${b.dataset.show}_0`; renderShop(); $('tree').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('abilDlg').close(); selected = `ab_${b.dataset.show}_0`; renderShop();
+    const n = $('n-' + selected); if (n) centerTreeOn(parseFloat(n.style.left), parseFloat(n.style.top));
+    $('tree').parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 }

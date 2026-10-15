@@ -354,6 +354,8 @@ const AU = (() => {
     naehr(){ jingle('celesta', [84, 88, 91], 0.05, 0.45); },
     darmrausch(){ jingle('marimba', [60, 64, 67, 72, 76, 79, 84], 0.05, 0.8); pad([60, 67, 72, 76], ac.currentTime + 0.2, 1.4, 0.03, sfxBus); },
     blind(){ jingle('celesta', [72, 79, 84, 88, 91, 96], 0.06, 0.6); INST.bass(36, ac.currentTime, 0.9, 0.6, sfxBus); },
+    fund(){ jingle('celesta', [79, 84, 88, 91, 96], 0.06, 0.6); INST.marimba(72, ac.currentTime, 0.4, 0.3, sfxBus); },
+    reveal(){ jingle('marimba', [67, 72, 76, 79, 84], 0.07, 0.75); pad([67, 72, 76, 79], ac.currentTime + 0.3, 1.1, 0.03, sfxBus); jingle('celesta', [91, 96], 0.12, 0.4, 0.5); },
     knack(){ const t = ac.currentTime; hiss(t, 0.03, 0.35, 'highpass', 3000); tone('sine', 1800, t, 0.04, 0.15); },
     verdaut(){ jingle('marimba', [60, 64, 67, 72], 0.08, 0.7); INST.celesta(84, ac.currentTime + 0.34, 0.4, 0.4, sfxBus); },
   };

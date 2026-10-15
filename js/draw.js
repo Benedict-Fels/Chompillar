@@ -118,6 +118,7 @@ function draw(){
   const x1 = Math.min(SIM, Math.ceil(cam.x + cam.V) + 1), y1 = Math.min(SIM, Math.ceil(cam.y + cam.V) + 1);
   if (x1 > x0 && y1 > y0) fctx.putImageData(img, 0, 0, x0, y0, x1 - x0, y1 - y0);
   ctx.imageSmoothingEnabled = false;
+  drawBehind();
   ctx.drawImage(fruitCv, 0, 0, SIM * SC, SIM * SC);
   if (run.pool){
     ctx.fillStyle = `rgba(200,224,74,${0.25 + 0.15 * Math.sin(performance.now() / 90)})`;
@@ -125,6 +126,7 @@ function draw(){
   }
   drawCat();
   drawSpecial();
+  drawFund();
 
   if (run.beamEnd){
     const h = cat.trail[0];
@@ -193,7 +195,8 @@ function buildRunPanel(){
   $('resK').innerHTML = `${icon(WI, 'k')}<span id="sK">0</span>`;
   $('resK').title = W.coreCur;
   $('runStats').innerHTML = layerKeys(W).map(k => `<span>${W.layers[k].name}</span><span id="sL${k}">0 %</span>`).join('')
-    + (SP.def ? `<span>${SP.def.plural}</span><span id="sLsp"></span>` : '');
+    + (SP.def ? `<span>${SP.def.plural}</span><span id="sLsp"></span>` : '')
+    + (run.fund ? `<span>Fundstelle</span><span id="sLfund"></span>` : '');
   $('legend').innerHTML = layerKeys(W).map(k =>
     `<div><span class="sw" style="background:${W.layers[k].sw}"></span>${W.layers[k].name}, ${W.layers[k].note}</div>`).join('')
     + (SP.def ? `<div><span class="sw" style="background:${W.layers[SPK].sw}"></span>${SP.def.name}, ${W.layers[SPK].note}</div>` : '');
@@ -225,6 +228,7 @@ function hud(){
   $('sK').textContent = fmtInt(run.k);
   for (const k of layerKeys(W)) $('sL' + k).textContent = Math.round(pctOf(k)) + ' %';
   if (SP.def && $('sLsp')) $('sLsp').textContent = spSummary().val;
+  if (run.fund && $('sLfund')) $('sLfund').textContent = run.fund.got ? 'gefunden!' : 'funkelt';
   $('vPow').textContent = fmt2(effPower());
   $('vRate').textContent = fmt2(effRate());
   $('vSeg').textContent = S.segs;
@@ -252,6 +256,7 @@ function hud(){
   else if (run.bites === 0) msg = (save.runs.every(x => !x) ? CTRL_HINT[ctrl.mode] + ' Die Ausdauer sinkt mit der Zeit, jeder Biss kostet extra.' : `Neue ${W.name}, volle Ausdauer. Los.`)
     + (save.abil.active ? ` ${ABIL[save.abil.active].name} ist nach ${S.cd} s wieder bereit.` : '');
   else if (run.hardStreak > 2){ msg = 'Zu hart für diesen Biss. Mehr Bisskraft hilft, oder dranbleiben.'; warn = true; }
+  else if (run.fund && !run.fund.got && run.time < 15) msg = 'Da funkelt etwas in der Frucht: ein Fundstück. Friss die Stelle frei, am Ende siehst du, was es ist.';
   else msg = W.hint(run);
   hint.textContent = msg;
   hint.classList.toggle('warn', warn);
